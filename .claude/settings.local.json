@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install:*)",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(node -e \"const {createCanvas}=require\\(''''canvas''''\\); console.log\\(''''canvas ok''''\\)\")",
+      "Bash(magick --version)",
+      "Bash(node scripts/gen-icons.mjs)",
+      "Bash(ls -la public/*.png)",
+      "Bash(node -e \":*)",
+      "Bash(npm run:*)"
+    ]
+  }
+}

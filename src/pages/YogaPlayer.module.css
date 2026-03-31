@@ -1,0 +1,408 @@
+.selectHeader {
+  text-align: center;
+  padding: 8px 0;
+}
+
+.selectHeader h2 {
+  font-size: 20px;
+  margin-bottom: 4px;
+}
+
+.selectSub {
+  font-size: 12px;
+  color: var(--text-muted);
+  letter-spacing: 0.15em;
+}
+
+.presetList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.presetCard {
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  transition: border-color 0.2s;
+}
+
+.presetCard:hover {
+  border-color: var(--accent-dim);
+}
+
+.presetName {
+  font-family: 'Noto Serif TC', serif;
+  font-size: 18px;
+  color: var(--text);
+  margin-bottom: 6px;
+}
+
+.presetDesc {
+  font-size: 13px;
+  color: var(--text-dim);
+  margin-bottom: 8px;
+}
+
+.presetMeta {
+  font-size: 11px;
+  color: var(--text-muted);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+/* Transition overlay */
+.transitionOverlay {
+  position: fixed;
+  inset: 0;
+  background: var(--bg);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fadeIn 0.3s ease;
+}
+
+.transitionContent {
+  text-align: center;
+}
+
+.transitionEmoji {
+  font-size: 56px;
+  margin-bottom: 16px;
+  animation: breathe 2s ease-in-out infinite;
+}
+
+.transitionName {
+  font-family: 'Noto Serif TC', serif;
+  font-size: 20px;
+  color: var(--text-dim);
+  letter-spacing: 0.1em;
+  margin-bottom: 8px;
+}
+
+.transitionMeta {
+  font-size: 12px;
+  color: var(--text-muted);
+  letter-spacing: 0.15em;
+}
+
+/* Progress */
+.progressWrap {
+  background: var(--surface2);
+  border-radius: 2px;
+  height: 2px;
+  overflow: hidden;
+}
+
+.progressFill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent-dim), var(--accent));
+  border-radius: 2px;
+  transition: width 1s linear;
+}
+
+.progressLabels {
+  display: flex;
+  justify-content: space-between;
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  color: var(--text-muted);
+}
+
+/* Main card */
+.mainCard {
+  text-align: center;
+  padding: 28px 24px;
+}
+
+.poseEmoji {
+  font-size: 48px;
+  display: block;
+  margin-bottom: 12px;
+  filter: drop-shadow(0 0 20px rgba(123,108,255,0.3));
+  animation: breathe 4s ease-in-out infinite;
+}
+
+.poseName {
+  font-family: 'Zen Old Mincho', 'Noto Serif TC', serif;
+  font-size: 22px;
+  letter-spacing: 0.08em;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+
+.poseNameEn {
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  color: var(--text-muted);
+  margin-bottom: 20px;
+  text-transform: uppercase;
+}
+
+/* Timer ring */
+.timerRingWrap {
+  position: relative;
+  width: 160px;
+  height: 160px;
+  margin: 0 auto 20px;
+}
+
+.timerSvg {
+  transform: rotate(-90deg);
+  width: 160px;
+  height: 160px;
+}
+
+.ringBg {
+  fill: none;
+  stroke: var(--surface2);
+  stroke-width: 3;
+}
+
+.ringProgress {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 3;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 1s linear;
+  filter: drop-shadow(0 0 6px rgba(123,108,255,0.5));
+}
+
+.timerCenter {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.timerDigits {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 46px;
+  font-weight: 300;
+  letter-spacing: 0.02em;
+  color: var(--text);
+  line-height: 1;
+}
+
+.timerLabel {
+  font-size: 10px;
+  letter-spacing: 0.15em;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+/* Guidance */
+.guidanceBox {
+  background: var(--surface2);
+  border-radius: 10px;
+  padding: 16px 18px;
+  text-align: left;
+  border-left: 2px solid var(--accent-dim);
+}
+
+.guidanceText {
+  font-size: 13px;
+  line-height: 1.8;
+  color: var(--text-dim);
+  letter-spacing: 0.03em;
+}
+
+/* Controls */
+.controls {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.playBtn {
+  flex: 1;
+  max-width: 200px;
+}
+
+.finishBtn {
+  font-size: 13px;
+  padding: 14px 16px;
+  min-width: 60px;
+}
+
+/* Voice toggle */
+.voiceToggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.voiceDot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  background: var(--green);
+  border-radius: 50%;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.8); }
+}
+
+.voiceLabel {
+  font-size: 12px;
+  color: var(--text-dim);
+  letter-spacing: 0.05em;
+  flex: 1;
+}
+
+.toggleSwitch {
+  position: relative;
+  width: 36px;
+  height: 20px;
+  cursor: pointer;
+  display: inline-block;
+}
+
+.toggleSwitch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+  position: absolute;
+}
+
+.toggleSlider {
+  position: absolute;
+  inset: 0;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  transition: 0.3s;
+}
+
+.toggleSlider::before {
+  content: '';
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  left: 2px;
+  top: 2px;
+  background: var(--text-muted);
+  border-radius: 50%;
+  transition: 0.3s;
+}
+
+.toggleSwitch input:checked + .toggleSlider {
+  background: var(--accent-dim);
+  border-color: var(--accent);
+}
+
+.toggleSwitch input:checked + .toggleSlider::before {
+  transform: translateX(16px);
+  background: var(--accent);
+}
+
+/* Pose list toggle */
+.listToggle {
+  width: 100%;
+}
+
+/* Pose list */
+.poseList {
+  padding: 0;
+}
+
+.poseListHeader {
+  padding: 14px 20px;
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
+  text-transform: uppercase;
+}
+
+.poseItem {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 20px;
+  border-bottom: 1px solid rgba(58, 56, 80, 0.3);
+  opacity: 0.4;
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.poseItem:last-child {
+  border-bottom: none;
+}
+
+.poseItemActive {
+  opacity: 1;
+  background: rgba(123, 108, 255, 0.06);
+}
+
+.poseItemDone {
+  opacity: 0.25;
+}
+
+.poseItemDone .poseItemName {
+  text-decoration: line-through;
+}
+
+.poseItemEmoji {
+  font-size: 18px;
+  width: 24px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.poseItemInfo {
+  flex: 1;
+}
+
+.poseItemName {
+  font-size: 13px;
+  color: var(--text);
+}
+
+.poseItemDur {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.activeDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  flex-shrink: 0;
+}
+
+/* Done */
+.doneCard {
+  text-align: center;
+  padding: 40px 24px;
+}
+
+.doneEmoji {
+  font-size: 56px;
+  margin-bottom: 16px;
+}
+
+.doneTitle {
+  font-size: 20px;
+  color: var(--gold);
+  margin-bottom: 12px;
+}
+
+.doneText {
+  font-size: 13px;
+  color: var(--text-dim);
+  line-height: 1.8;
+}
