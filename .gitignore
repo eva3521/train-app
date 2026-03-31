@@ -5,6 +5,9 @@
 .env
 .env.*
 
+# Lock file (platform-specific native bindings in Vite 8)
+package-lock.json
+
 # Logs
 logs
 *.log
