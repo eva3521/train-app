@@ -71,7 +71,8 @@ export default function YogaPlayer() {
     tenSecSpokenRef.current = false
     startDown(pose.duration)
     setPaused(false)
-    setTimeout(() => voice.speak(pose.voiceText), 600)
+    const poseNum = String(index + 1).padStart(2, '0')
+    setTimeout(() => voice.speak(pose.voiceText, { audioId: `pose_${poseNum}` }), 600)
   }, [preset, startDown, voice])
 
   // Handle preset selection
@@ -84,7 +85,7 @@ export default function YogaPlayer() {
     halfwaySpokenRef.current = false
     tenSecSpokenRef.current = false
     startDown(p.poses[0].duration)
-    setTimeout(() => voice.speak(p.poses[0].voiceText), 600)
+    setTimeout(() => voice.speak(p.poses[0].voiceText, { audioId: 'pose_01' }), 600)
   }, [startDown, voice])
 
   // Voice warnings
@@ -96,14 +97,14 @@ export default function YogaPlayer() {
       const halfway = Math.floor(currentPose.duration / 2)
       if (remaining === halfway) {
         halfwaySpokenRef.current = true
-        voice.speak('\u4E00\u534A\u6642\u9593\u5230\uFF0C\u7E7C\u7E8C\u4FDD\u6301\uFF0C\u8B93\u547C\u5438\u5E36\u4F60\u66F4\u6DF1\u5165\u3002')
+        voice.speak('一半時間到，繼續保持，讓呼吸帶你更深入。', { audioId: 'halfway' })
       }
     }
 
     // 10 seconds warning
     if (!tenSecSpokenRef.current && remaining === 10) {
       tenSecSpokenRef.current = true
-      voice.speak('\u9084\u6709\u5341\u79D2\uFF0C\u6E96\u5099\u7DE9\u6162\u8D77\u8EAB\u3002')
+      voice.speak('還有十秒，準備緩慢起身。', { audioId: 'ten_sec' })
     }
   }, [remaining, phase, currentPose, voice])
 
@@ -115,7 +116,8 @@ export default function YogaPlayer() {
       // Transition
       setPhase('transition')
       const nextPose = preset.poses[poseIndex + 1]
-      voice.speak(`\u63A5\u4E0B\u4F86\u662F${nextPose.name}\u3002`)
+      const nextNum = String(poseIndex + 2).padStart(2, '0')
+      voice.speak(`接下來是${nextPose.name}。`, { audioId: `next_${nextNum}` })
 
       setTimeout(() => {
         setPhase('playing')
@@ -137,7 +139,7 @@ export default function YogaPlayer() {
     stop()
     voice.cancel()
     setPhase('done')
-    voice.speak('\u7DF4\u7FD2\u5713\u6EFF\u5B8C\u6210\u3002\u8B93\u8EAB\u9AD4\u975C\u975C\u6574\u5408\u3002\u9858\u4F60\u5E36\u8457\u9019\u4EFD\u5BE7\u975C\u9032\u5165\u4ECA\u5929\u7684\u5176\u9918\u6642\u5149\u3002')
+    voice.speak('練習圓滿完成。讓身體靜靜整合。願你帶著這份寧靜進入今天的其餘時光。', { audioId: 'finish' })
   }, [preset, addYogaLog, stop, voice])
 
   const togglePause = useCallback(() => {

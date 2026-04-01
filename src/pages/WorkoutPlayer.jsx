@@ -88,6 +88,35 @@ export default function WorkoutPlayer() {
   const totalSets = currentEx?.sets ?? 1
   const sideLabel = currentEx?.symmetric ? (side === 'left' ? '左邊' : '右邊') : null
 
+  // ─── Beep via Web Audio API ─────────────────────────────────────
+  const audioCtxRef = useRef(null)
+  const getAudioCtx = useCallback(() => {
+    if (!audioCtxRef.current) {
+      audioCtxRef.current = new (window.AudioContext || window.webkitAudioContext)()
+    }
+    // Resume if suspended (iOS requires user gesture)
+    if (audioCtxRef.current.state === 'suspended') {
+      audioCtxRef.current.resume()
+    }
+    return audioCtxRef.current
+  }, [])
+
+  const playBeep = useCallback((freq = 880, duration = 0.15) => {
+    try {
+      const ctx = getAudioCtx()
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
+      osc.type = 'square'
+      osc.frequency.value = freq
+      gain.gain.setValueAtTime(0.3, ctx.currentTime)
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + duration)
+      osc.connect(gain)
+      gain.connect(ctx.destination)
+      osc.start(ctx.currentTime)
+      osc.stop(ctx.currentTime + duration)
+    } catch { /* silent fail */ }
+  }, [getAudioCtx])
+
   // ─── Rest timer (setInterval, no Worker) ───────────────────────
   const beginRest = useCallback((duration) => {
     clearInterval(restIntervalRef.current)
@@ -101,11 +130,13 @@ export default function WorkoutPlayer() {
         restIntervalRef.current = null
         setRestSecs(0)
         setRestFinished(true)
+        playBeep(1200, 0.3) // Final beep — higher pitch, longer
       } else {
         setRestSecs(s)
+        if (s <= 5 && s >= 1) playBeep(880, 0.15) // Last 5 seconds — short beeps
       }
     }, 1000)
-  }, [])
+  }, [playBeep])
 
   const cancelRest = useCallback(() => {
     clearInterval(restIntervalRef.current)
@@ -221,12 +252,13 @@ export default function WorkoutPlayer() {
 
   // ─── Phase transitions ─────────────────────────────────────────
   const handleStart = useCallback(() => {
+    getAudioCtx() // Init AudioContext on user gesture (iOS)
     setExIdx(0); setSetNum(1); setSide('left')
     setResting(false); setAllExDone(false); setPrevStep(null)
     pendingRef.current = null
     setPhase('active')
     startUp()
-  }, [startUp])
+  }, [startUp, getAudioCtx])
 
   const handleComplete = useCallback(() => {
     stopElapsed(); cancelRest()
@@ -356,15 +388,40 @@ export default function WorkoutPlayer() {
           )}
 
           {/* Rest countdown */}
-          {!allExDone && resting && (
-            <div className={`card ${styles.restCard}`}>
-              <div className={styles.restLabel}>R E S T</div>
-              <div className={styles.restDigits}>{formatTime(restSecs)}</div>
-              <button className={styles.skipRestBtn} onClick={handleSkipRest}>
-                略過休息 →
-              </button>
-            </div>
-          )}
+          {!allExDone && resting && (() => {
+            const pending = pendingRef.current
+            const nextEx = pending && !pending.done ? exercises[pending.exIdx] : null
+            const isNewEx = pending && pending.exIdx !== exIdx
+            return (
+              <div className={`card ${styles.restCard}`}>
+                <div className={styles.restLabel}>R E S T</div>
+                <div className={styles.restDigits}>{formatTime(restSecs)}</div>
+
+                {nextEx && (
+                  <div className={styles.restNextPreview}>
+                    <div className={styles.restNextLabel}>
+                      {isNewEx ? '下一個動作' : '下一組'}
+                    </div>
+                    <div className={styles.restNextName}>
+                      {isNewEx ? nextEx.name : `${currentEx.name} — 第 ${pending.setNum} 組`}
+                    </div>
+                    {isNewEx && nextEx.symmetric && (
+                      <span className={styles.symBadge}>左右輪流</span>
+                    )}
+                    {isNewEx && (
+                      <div className={styles.restNextMeta}>
+                        {nextEx.sets} × {nextEx.reps}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <button className={styles.skipRestBtn} onClick={handleSkipRest}>
+                  略過休息 →
+                </button>
+              </div>
+            )
+          })()}
 
           {/* Exercise card */}
           {!allExDone && !resting && currentEx && (
