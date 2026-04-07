@@ -45,13 +45,27 @@ export default function CalendarView() {
 
   const days = useMemo(() => getCalendarDays(year, month), [year, month])
 
+  // Normalize date: handle ISO timestamps (from Sheets) and plain date strings
+  // Sheets returns dates as UTC ISO strings like "2026-04-05T16:00:00.000Z"
+  // which is actually 2026-04-06 in local timezone (UTC+8)
+  function normalizeDate(dateVal) {
+    if (!dateVal) return ''
+    const str = String(dateVal)
+    // Already yyyy-mm-dd format
+    if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return str
+    // ISO timestamp or other date string — parse and use local date
+    const d = new Date(str)
+    if (isNaN(d)) return str
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+  }
+
   // Build lookup maps: dateStr -> data (only completed entries shown on calendar)
   const workoutMap = useMemo(() => {
     const m = {}
     workoutLog
       .filter(e => e.completed === true || String(e.completed).toUpperCase() === 'TRUE')
       .forEach(e => {
-        const d = typeof e.date === 'string' ? e.date : new Date(e.date).toISOString().slice(0, 10)
+        const d = normalizeDate(e.date)
         m[d] = e
       })
     return m
@@ -60,7 +74,7 @@ export default function CalendarView() {
   const yogaMap = useMemo(() => {
     const m = {}
     yogaLog.forEach(e => {
-      const d = typeof e.date === 'string' ? e.date : new Date(e.date).toISOString().slice(0, 10)
+      const d = normalizeDate(e.date)
       m[d] = e
     })
     return m
