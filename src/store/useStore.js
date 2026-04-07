@@ -3,6 +3,8 @@ import { yogaPresets as hardcodedPresets } from '../data/yogaPresets';
 import { workoutProgram as hardcodedProgram } from '../data/workoutProgram';
 
 const QUEUE_KEY = 'train_offline_queue';
+const WORKOUT_LOG_KEY = 'train_workout_log';
+const YOGA_LOG_KEY = 'train_yoga_log';
 
 function getQueue() {
   try {
@@ -14,11 +16,24 @@ function saveQueue(queue) {
   localStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
 }
 
+function loadLocal(key) {
+  try {
+    const data = JSON.parse(localStorage.getItem(key));
+    return Array.isArray(data) ? data : [];
+  } catch { return []; }
+}
+
+function saveLocal(key, data) {
+  try {
+    localStorage.setItem(key, JSON.stringify(data));
+  } catch { /* storage full — ok */ }
+}
+
 const useStore = create((set, get) => ({
-  workoutLog: [],
-  yogaLog: [],
-  workoutProgram: hardcodedProgram, // start with hardcoded; replaced by Sheets if available
-  yogaPresets: hardcodedPresets, // start with hardcoded; replaced by Sheets if available
+  workoutLog: loadLocal(WORKOUT_LOG_KEY),
+  yogaLog: loadLocal(YOGA_LOG_KEY),
+  workoutProgram: hardcodedProgram,
+  yogaPresets: hardcodedPresets,
   loading: true,
   error: null,
   gasUrl: import.meta.env.VITE_GAS_URL || '',
@@ -37,11 +52,26 @@ const useStore = create((set, get) => ({
         fetch(`${url}?action=getWorkoutProgram`).then(r => r.json()),
         fetch(`${url}?action=getYogaPresets`).then(r => r.json()),
       ]);
+
+      const newWorkoutLog = Array.isArray(wLog) ? wLog : [];
+      const newYogaLog = Array.isArray(yLog) ? yLog : [];
+
+      // Merge: Sheets is source of truth, but also include any local-only entries
+      // (entries that were added offline and haven't synced yet)
+      const localWorkout = loadLocal(WORKOUT_LOG_KEY);
+      const localYoga = loadLocal(YOGA_LOG_KEY);
+
+      // Use Sheets data as base; if Sheets has data, it's authoritative
+      const mergedWorkout = newWorkoutLog.length > 0 ? newWorkoutLog : localWorkout;
+      const mergedYoga = newYogaLog.length > 0 ? newYogaLog : localYoga;
+
+      saveLocal(WORKOUT_LOG_KEY, mergedWorkout);
+      saveLocal(YOGA_LOG_KEY, mergedYoga);
+
       set({
-        workoutLog: Array.isArray(wLog) ? wLog : [],
-        yogaLog: Array.isArray(yLog) ? yLog : [],
+        workoutLog: mergedWorkout,
+        yogaLog: mergedYoga,
         workoutProgram: Array.isArray(wProg) && wProg.length > 0 ? wProg : hardcodedProgram,
-        // Only replace hardcoded presets if Sheets returned valid data with poses
         yogaPresets: Array.isArray(yPresets) && yPresets.length > 0 && yPresets[0].poses?.length > 0
           ? yPresets
           : hardcodedPresets,
@@ -55,8 +85,12 @@ const useStore = create((set, get) => ({
   },
 
   addWorkoutLog: async (entry) => {
-    // Optimistic update
-    set(s => ({ workoutLog: [...s.workoutLog, entry] }));
+    // Optimistic update + persist to localStorage
+    set(s => {
+      const updated = [...s.workoutLog, entry];
+      saveLocal(WORKOUT_LOG_KEY, updated);
+      return { workoutLog: updated };
+    });
     const url = get().gasUrl;
     if (!url) return;
     const params = new URLSearchParams({
@@ -77,7 +111,11 @@ const useStore = create((set, get) => ({
   },
 
   addYogaLog: async (entry) => {
-    set(s => ({ yogaLog: [...s.yogaLog, entry] }));
+    set(s => {
+      const updated = [...s.yogaLog, entry];
+      saveLocal(YOGA_LOG_KEY, updated);
+      return { yogaLog: updated };
+    });
     const url = get().gasUrl;
     if (!url) return;
     const params = new URLSearchParams({
@@ -103,6 +141,7 @@ const useStore = create((set, get) => ({
       for (let i = log.length - 1; i >= 0; i--) {
         if (log[i].notes === 'skipped') {
           log.splice(i, 1);
+          saveLocal(WORKOUT_LOG_KEY, log);
           return { workoutLog: log };
         }
       }
