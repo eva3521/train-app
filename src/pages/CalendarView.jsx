@@ -41,6 +41,7 @@ export default function CalendarView() {
 
   const workoutLog = useStore(s => s.workoutLog)
   const yogaLog = useStore(s => s.yogaLog)
+  const activityLog = useStore(s => s.activityLog)
   const loading = useStore(s => s.loading)
 
   const days = useMemo(() => getCalendarDays(year, month), [year, month])
@@ -80,6 +81,18 @@ export default function CalendarView() {
     return m
   }, [yogaLog])
 
+  // A day can hold more than one of these (a ski morning and a pole class),
+  // so this map holds a list rather than a single entry.
+  const activityMap = useMemo(() => {
+    const m = {}
+    activityLog.forEach(e => {
+      const d = normalizeDate(e.date)
+      if (!m[d]) m[d] = []
+      m[d].push(e)
+    })
+    return m
+  }, [activityLog])
+
   function prevMonth() {
     if (month === 0) { setYear(y => y - 1); setMonth(11) }
     else setMonth(m => m - 1)
@@ -97,13 +110,17 @@ export default function CalendarView() {
     const todayDate = new Date(today.getFullYear(), today.getMonth(), today.getDate())
     const isPast = clickedDate < todayDate
 
-    if (isPast) {
-      const workout = workoutMap[dateStr] || null
-      const yoga = yogaMap[dateStr] || null
-      setSelected({ date: dateStr, dayDetail: { workout, yoga } })
-    } else {
-      setSelected({ date: dateStr, dayDetail: null })
-    }
+    // The sheet always gets what was logged; isPast only decides whether it
+    // also offers to start a session.
+    setSelected({
+      date: dateStr,
+      isPast,
+      dayDetail: {
+        workout: workoutMap[dateStr] || null,
+        yoga: yogaMap[dateStr] || null,
+        activities: activityMap[dateStr] || [],
+      },
+    })
   }
 
   const monthLabel = new Date(year, month).toLocaleDateString('zh-TW', { year: 'numeric', month: 'long' })
@@ -131,6 +148,7 @@ export default function CalendarView() {
           const isToday = !d.isOtherMonth && d.day === today.getDate() && month === today.getMonth() && year === today.getFullYear()
           const w = dateStr ? workoutMap[dateStr] : null
           const y = dateStr ? yogaMap[dateStr] : null
+          const a = dateStr ? activityMap[dateStr] : null
 
           return (
             <DayCell
@@ -140,6 +158,7 @@ export default function CalendarView() {
               isOtherMonth={d.isOtherMonth}
               workoutDay={w ? w.day_number : null}
               yogaPreset={y ? y.preset_name : null}
+              activities={a}
               onClick={() => handleDayClick(d.day, d.isOtherMonth)}
             />
           )
@@ -151,6 +170,7 @@ export default function CalendarView() {
       {selected && (
         <ActionSheet
           date={selected.date}
+          isPast={selected.isPast}
           dayDetail={selected.dayDetail}
           onClose={() => setSelected(null)}
         />

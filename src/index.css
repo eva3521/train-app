@@ -78,6 +78,14 @@ h1, h2, h3 {
 
 .btn:active { transform: scale(0.96); }
 
+/* Nothing defined a disabled look, so disabled buttons read as tappable.
+   pointer-events also kills the hover and :active states in one go. */
+.btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+  pointer-events: none;
+}
+
 .btn-primary {
   background: var(--accent);
   color: white;

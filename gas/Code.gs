@@ -33,6 +33,9 @@ function handleRequest(e) {
       case 'getExerciseLog':
         result = getSheetData('exercise_log');
         break;
+      case 'getActivityLog':
+        result = getSheetData('activity_log');
+        break;
       case 'logWorkout':
         result = appendRow('workout_log', [
           params.date,
@@ -40,6 +43,16 @@ function handleRequest(e) {
           params.completed === 'true',
           parseFloat(params.duration_minutes),
           params.notes || ''
+        ]);
+        break;
+      // Anything outside the program: skiing, a pole class, whatever.
+      // Recorded in hours, since these are logged after the fact rather
+      // than timed by the app.
+      case 'logActivity':
+        result = appendRow('activity_log', [
+          params.date,
+          params.activity,
+          parseFloat(params.duration_hours)
         ]);
         break;
       case 'logYoga':

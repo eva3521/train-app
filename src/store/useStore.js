@@ -6,6 +6,7 @@ const QUEUE_KEY = 'train_offline_queue';
 const WORKOUT_LOG_KEY = 'train_workout_log';
 const YOGA_LOG_KEY = 'train_yoga_log';
 const EXERCISE_LOG_KEY = 'train_exercise_log';
+const ACTIVITY_LOG_KEY = 'train_activity_log';
 
 function getQueue() {
   try {
@@ -34,6 +35,7 @@ const useStore = create((set, get) => ({
   workoutLog: loadLocal(WORKOUT_LOG_KEY),
   yogaLog: loadLocal(YOGA_LOG_KEY),
   exerciseLog: loadLocal(EXERCISE_LOG_KEY),
+  activityLog: loadLocal(ACTIVITY_LOG_KEY),
   // Menus live in the source code now, not in Sheets.
   workoutProgram: hardcodedProgram,
   yogaPresets: hardcodedPresets,
@@ -49,30 +51,35 @@ const useStore = create((set, get) => ({
     }
     set({ loading: true, error: null });
     try {
-      const [wLog, yLog, eLog] = await Promise.all([
+      const [wLog, yLog, eLog, aLog] = await Promise.all([
         fetch(`${url}?action=getWorkoutLog`).then(r => r.json()),
         fetch(`${url}?action=getYogaLog`).then(r => r.json()),
         fetch(`${url}?action=getExerciseLog`).then(r => r.json()),
+        fetch(`${url}?action=getActivityLog`).then(r => r.json()),
       ]);
 
       const newWorkoutLog = Array.isArray(wLog) ? wLog : [];
       const newYogaLog = Array.isArray(yLog) ? yLog : [];
       const newExerciseLog = Array.isArray(eLog) ? eLog : [];
+      const newActivityLog = Array.isArray(aLog) ? aLog : [];
 
       // Sheets is source of truth when it has data; otherwise keep what's local
       // (entries added offline that haven't synced yet).
       const mergedWorkout = newWorkoutLog.length > 0 ? newWorkoutLog : loadLocal(WORKOUT_LOG_KEY);
       const mergedYoga = newYogaLog.length > 0 ? newYogaLog : loadLocal(YOGA_LOG_KEY);
       const mergedExercise = newExerciseLog.length > 0 ? newExerciseLog : loadLocal(EXERCISE_LOG_KEY);
+      const mergedActivity = newActivityLog.length > 0 ? newActivityLog : loadLocal(ACTIVITY_LOG_KEY);
 
       saveLocal(WORKOUT_LOG_KEY, mergedWorkout);
       saveLocal(YOGA_LOG_KEY, mergedYoga);
       saveLocal(EXERCISE_LOG_KEY, mergedExercise);
+      saveLocal(ACTIVITY_LOG_KEY, mergedActivity);
 
       set({
         workoutLog: mergedWorkout,
         yogaLog: mergedYoga,
         exerciseLog: mergedExercise,
+        activityLog: mergedActivity,
         loading: false,
       });
       get().flushQueue();
@@ -150,6 +157,31 @@ const useStore = create((set, get) => ({
     } catch {
       const queue = getQueue();
       queue.push({ type: 'logExercises', data: { rows: JSON.stringify(rows) } });
+      saveQueue(queue);
+    }
+  },
+
+  // Training outside the program — logged in hours, for a chosen date, so
+  // an evening on the slopes can be entered the next morning.
+  addActivityLog: async (entry) => {
+    set(s => {
+      const updated = [...s.activityLog, entry];
+      saveLocal(ACTIVITY_LOG_KEY, updated);
+      return { activityLog: updated };
+    });
+    const url = get().gasUrl;
+    if (!url) return;
+    const params = new URLSearchParams({
+      action: 'logActivity',
+      date: entry.date,
+      activity: entry.activity,
+      duration_hours: String(entry.duration_hours),
+    });
+    try {
+      await fetch(`${url}?${params}`);
+    } catch {
+      const queue = getQueue();
+      queue.push({ type: 'logActivity', data: entry });
       saveQueue(queue);
     }
   },
