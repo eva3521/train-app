@@ -23,9 +23,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: npm
 
-      - run: npm ci
+      # package-lock.json is gitignored (platform-specific native bindings in
+      # Vite 8), so npm ci has no lockfile to work from.
+      - run: npm install
 
       - run: npm run build
         env:
