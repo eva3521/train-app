@@ -444,3 +444,146 @@
   font-weight: 300;
   color: var(--text-dim);
 }
+
+/* ─── Weight logging ─────────────────────────────────────────── */
+
+.lastWeight {
+  margin-top: 10px;
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  color: var(--gold, #c9a227);
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 8px;
+}
+
+.lastWeightDate {
+  font-size: 11px;
+  opacity: 0.55;
+  letter-spacing: 0.06em;
+}
+
+.lastWeightEmpty {
+  margin-top: 10px;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  opacity: 0.35;
+}
+
+.weightBackdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.72);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  z-index: 60;
+  padding: 16px;
+  padding-bottom: calc(16px + env(safe-area-inset-bottom));
+}
+
+.weightSheet {
+  width: 100%;
+  max-width: 460px;
+  padding: 22px 20px 18px;
+}
+
+.weightTitle {
+  font-size: 19px;
+  font-weight: 500;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-bottom: 20px;
+}
+
+.weightSub {
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  opacity: 0.5;
+  font-weight: 400;
+}
+
+.weightFields {
+  display: flex;
+  gap: 12px;
+}
+
+.weightField {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.weightField:last-child {
+  flex: 0 0 34%;
+}
+
+.weightLabel {
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  opacity: 0.5;
+  text-transform: uppercase;
+}
+
+.weightInput {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 8px;
+  color: inherit;
+  font: inherit;
+  font-size: 26px;
+  padding: 12px 14px;
+  text-align: center;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.weightInput:focus {
+  outline: none;
+  border-color: var(--gold, #c9a227);
+}
+
+.weightQuick {
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.weightQuickBtn {
+  flex: 1;
+  padding: 11px 0;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.weightQuickBtn:active {
+  border-color: var(--gold, #c9a227);
+}
+
+.weightConfirm {
+  width: 100%;
+  margin-top: 18px;
+}
+
+.weightSkip {
+  width: 100%;
+  margin-top: 10px;
+  padding: 10px 0;
+  background: none;
+  border: none;
+  color: inherit;
+  font: inherit;
+  font-size: 13px;
+  opacity: 0.45;
+  cursor: pointer;
+}

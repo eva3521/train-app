@@ -8,7 +8,7 @@ export default function useTimer() {
   const [done, setDone] = useState(false);
 
   useEffect(() => {
-    const w = new Worker('/timer.worker.js');
+    const w = new Worker(`${import.meta.env.BASE_URL}timer.worker.js`);
     workerRef.current = w;
     w.onmessage = (e) => {
       if (e.data.elapsed !== undefined) setElapsed(e.data.elapsed);

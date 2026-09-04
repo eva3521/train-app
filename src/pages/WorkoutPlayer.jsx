@@ -20,12 +20,24 @@ function isTruthy(v) {
   return v === true || String(v).toUpperCase() === 'TRUE'
 }
 
+// Bodyweight moves don't ask for a weight. Anything using a bar, bell, cable,
+// machine or band does. Keyword match beats maintaining a second list by hand.
+const LOADED_RE = /啞鈴|槓鈴|滑輪|Cable|史密斯|高腳杯|壺鈴|器械|負重|彈力帶|翹臀圈|重量|硬舉|臀推|划船|彎舉|下壓|飛鳥|肩推|下拉|深蹲|窄蹲|弓箭步|分腿蹲|前平舉|三頭|RM/i
+const UNLOADED_RE = /徒手|自體重|靠牆|呼吸|走路|步態|足弓|舌頂|下顎|扶槓|伏地挺身|抬臀|超人|手抱頭|核心穩定|踩階梯|髖外展|髖屈|下腹|胸椎|單腿轉體/
+
+function usesWeight(ex) {
+  if (UNLOADED_RE.test(ex.name)) return false
+  return LOADED_RE.test(ex.name) || LOADED_RE.test(String(ex.reps))
+}
+
 export default function WorkoutPlayer() {
   const navigate    = useNavigate()
   const workoutLog     = useStore(s => s.workoutLog)
   const workoutProgram = useStore(s => s.workoutProgram)
   const addWorkoutLog  = useStore(s => s.addWorkoutLog)
   const removeLastSkip = useStore(s => s.removeLastSkip)
+  const exerciseLog    = useStore(s => s.exerciseLog)
+  const addExerciseLogs = useStore(s => s.addExerciseLogs)
 
   // Single timer for session elapsed (Web Worker, iOS safe)
   const { elapsed, startUp, stop: stopElapsed, reset: resetElapsed } = useTimer()
@@ -48,6 +60,13 @@ export default function WorkoutPlayer() {
   const [prevStep, setPrevStep]   = useState(null)
 
   const pendingRef = useRef(null)
+
+  // Weight logging
+  const [askWeight, setAskWeight]   = useState(false)   // showing the input?
+  const [weightVal, setWeightVal]   = useState('')
+  const [repsVal, setRepsVal]       = useState('')
+  const [sessionSets, setSessionSets] = useState([])    // collected, written at the end
+  const [sessionWeights, setSessionWeights] = useState({}) // exercise name -> weight used this session
 
   // ─── Derived ───────────────────────────────────────────────────
   // Next suggested day = last logged day + 1 (all log entries, completed + skipped)
@@ -83,6 +102,21 @@ export default function WorkoutPlayer() {
         notes:     row.Notes ?? row.notes ?? '',
       }))
   }, [workoutProgram, selectedDay])
+
+  // Most recent previously-logged set for each exercise name
+  const lastByExercise = useMemo(() => {
+    const map = {}
+    for (const r of exerciseLog) {
+      const name = r.exercise ?? r.Exercise
+      if (!name) continue
+      const prev = map[name]
+      const d = String(r.date ?? r.Date ?? '')
+      if (!prev || d >= prev.date) {
+        map[name] = { date: d, weight: Number(r.weight ?? r.Weight) || 0, reps: String(r.reps ?? r.Reps ?? '') }
+      }
+    }
+    return map
+  }, [exerciseLog])
 
   const currentEx = allExDone ? null : exercises[exIdx]
   const totalSets = currentEx?.sets ?? 1
@@ -171,8 +205,10 @@ export default function WorkoutPlayer() {
   }, [restFinished]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ─── Done set ──────────────────────────────────────────────────
-  const handleDoneSet = useCallback(() => {
-    if (resting || !currentEx) return
+  // Advance to the next set/exercise. Called directly for bodyweight moves,
+  // or after the weight has been entered for loaded ones.
+  const advanceSet = useCallback(() => {
+    if (!currentEx) return
     setPrevStep({ exIdx, setNum, side })
 
     const isSym = currentEx.symmetric
@@ -219,7 +255,45 @@ export default function WorkoutPlayer() {
       setSetNum(next.setNum)
       setSide(next.side)
     }
-  }, [resting, currentEx, exIdx, setNum, side, totalSets, exercises.length, beginRest])
+  }, [currentEx, exIdx, setNum, side, totalSets, exercises.length, beginRest])
+
+  // Pressing "done" either opens the weight input or just advances.
+  const handleDoneSet = useCallback(() => {
+    if (resting || !currentEx) return
+    if (usesWeight(currentEx)) {
+      const seeded = sessionWeights[currentEx.name]
+        ?? lastByExercise[currentEx.name]?.weight
+        ?? ''
+      setWeightVal(seeded === '' ? '' : String(seeded))
+      setRepsVal(String(currentEx.reps ?? ''))
+      setAskWeight(true)
+      return
+    }
+    advanceSet()
+  }, [resting, currentEx, lastByExercise, sessionWeights, advanceSet])
+
+  // Record the set, then advance.
+  const confirmWeight = useCallback(() => {
+    if (!currentEx) return
+    const w = parseFloat(weightVal)
+    setSessionSets(prev => [...prev, {
+      date: todayStr(),
+      day_number: selectedDay,
+      exercise: currentEx.name,
+      set_number: setNum,
+      side: currentEx.symmetric ? (side === 'left' ? 'L' : 'R') : '',
+      weight: Number.isFinite(w) ? w : 0,
+      reps: repsVal,
+    }])
+    if (Number.isFinite(w)) setSessionWeights(prev => ({ ...prev, [currentEx.name]: w }))
+    setAskWeight(false)
+    advanceSet()
+  }, [currentEx, weightVal, repsVal, setNum, side, selectedDay, advanceSet])
+
+  const skipWeight = useCallback(() => {
+    setAskWeight(false)
+    advanceSet()
+  }, [advanceSet])
 
   // ─── Skip rest ─────────────────────────────────────────────────
   const handleSkipRest = useCallback(() => {
@@ -256,6 +330,9 @@ export default function WorkoutPlayer() {
     setExIdx(0); setSetNum(1); setSide('left')
     setResting(false); setAllExDone(false); setPrevStep(null)
     pendingRef.current = null
+    setSessionSets([])
+    setSessionWeights({})
+    setAskWeight(false)
     setPhase('active')
     startUp()
   }, [startUp, getAudioCtx])
@@ -267,9 +344,11 @@ export default function WorkoutPlayer() {
       date: todayStr(), day_number: selectedDay, completed: true,
       duration_minutes: Math.round(elapsed / 60 * 10) / 10, notes: '',
     })
+    addExerciseLogs(sessionSets)
+    setSessionSets([])
     setPhase('done')
     setShowConfetti(true)
-  }, [stopElapsed, cancelRest, elapsed, addWorkoutLog, selectedDay])
+  }, [stopElapsed, cancelRest, elapsed, addWorkoutLog, selectedDay, addExerciseLogs, sessionSets])
 
   const handleSkipDay = useCallback(() => {
     addWorkoutLog({
@@ -446,7 +525,85 @@ export default function WorkoutPlayer() {
 
               <div className={styles.repsDisplay}>{currentEx.reps}</div>
 
+              {usesWeight(currentEx) && (() => {
+                const prev = lastByExercise[currentEx.name]
+                const thisSession = sessionWeights[currentEx.name]
+                if (thisSession !== undefined) {
+                  return <div className={styles.lastWeight}>本次上一組 {thisSession} kg</div>
+                }
+                if (prev && prev.weight > 0) {
+                  return (
+                    <div className={styles.lastWeight}>
+                      上次 {prev.weight} kg × {prev.reps}
+                      <span className={styles.lastWeightDate}>{prev.date}</span>
+                    </div>
+                  )
+                }
+                return <div className={styles.lastWeightEmpty}>還沒有紀錄</div>
+              })()}
+
               {currentEx.notes && <div className={styles.activeNotes}>{currentEx.notes}</div>}
+            </div>
+          )}
+
+          {/* Weight input */}
+          {askWeight && currentEx && (
+            <div className={styles.weightBackdrop} onClick={skipWeight}>
+              <div className={`card ${styles.weightSheet}`} onClick={e => e.stopPropagation()}>
+                <div className={styles.weightTitle}>
+                  {currentEx.name}
+                  <span className={styles.weightSub}>
+                    第 {setNum} 組{currentEx.symmetric ? ` · ${sideLabel}` : ''}
+                  </span>
+                </div>
+
+                <div className={styles.weightFields}>
+                  <label className={styles.weightField}>
+                    <span className={styles.weightLabel}>重量 (kg)</span>
+                    <input
+                      className={styles.weightInput}
+                      type="number"
+                      inputMode="decimal"
+                      step="0.5"
+                      autoFocus
+                      value={weightVal}
+                      onChange={e => setWeightVal(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter') confirmWeight() }}
+                    />
+                  </label>
+                  <label className={styles.weightField}>
+                    <span className={styles.weightLabel}>次數</span>
+                    <input
+                      className={styles.weightInput}
+                      type="text"
+                      inputMode="numeric"
+                      value={repsVal}
+                      onChange={e => setRepsVal(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter') confirmWeight() }}
+                    />
+                  </label>
+                </div>
+
+                <div className={styles.weightQuick}>
+                  {[-2.5, -1, +1, +2.5].map(d => (
+                    <button
+                      key={d}
+                      className={styles.weightQuickBtn}
+                      onClick={() => {
+                        const base = parseFloat(weightVal) || 0
+                        setWeightVal(String(Math.max(0, Math.round((base + d) * 10) / 10)))
+                      }}
+                    >{d > 0 ? `+${d}` : d}</button>
+                  ))}
+                </div>
+
+                <button className={`btn btn-primary ${styles.weightConfirm}`} onClick={confirmWeight}>
+                  記錄並繼續
+                </button>
+                <button className={styles.weightSkip} onClick={skipWeight}>
+                  這組不記錄
+                </button>
+              </div>
             </div>
           )}
 

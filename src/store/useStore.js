@@ -5,6 +5,7 @@ import { workoutProgram as hardcodedProgram } from '../data/workoutProgram';
 const QUEUE_KEY = 'train_offline_queue';
 const WORKOUT_LOG_KEY = 'train_workout_log';
 const YOGA_LOG_KEY = 'train_yoga_log';
+const EXERCISE_LOG_KEY = 'train_exercise_log';
 
 function getQueue() {
   try {
@@ -32,6 +33,8 @@ function saveLocal(key, data) {
 const useStore = create((set, get) => ({
   workoutLog: loadLocal(WORKOUT_LOG_KEY),
   yogaLog: loadLocal(YOGA_LOG_KEY),
+  exerciseLog: loadLocal(EXERCISE_LOG_KEY),
+  // Menus live in the source code now, not in Sheets.
   workoutProgram: hardcodedProgram,
   yogaPresets: hardcodedPresets,
   loading: true,
@@ -46,38 +49,32 @@ const useStore = create((set, get) => ({
     }
     set({ loading: true, error: null });
     try {
-      const [wLog, yLog, wProg, yPresets] = await Promise.all([
+      const [wLog, yLog, eLog] = await Promise.all([
         fetch(`${url}?action=getWorkoutLog`).then(r => r.json()),
         fetch(`${url}?action=getYogaLog`).then(r => r.json()),
-        fetch(`${url}?action=getWorkoutProgram`).then(r => r.json()),
-        fetch(`${url}?action=getYogaPresets`).then(r => r.json()),
+        fetch(`${url}?action=getExerciseLog`).then(r => r.json()),
       ]);
 
       const newWorkoutLog = Array.isArray(wLog) ? wLog : [];
       const newYogaLog = Array.isArray(yLog) ? yLog : [];
+      const newExerciseLog = Array.isArray(eLog) ? eLog : [];
 
-      // Merge: Sheets is source of truth, but also include any local-only entries
-      // (entries that were added offline and haven't synced yet)
-      const localWorkout = loadLocal(WORKOUT_LOG_KEY);
-      const localYoga = loadLocal(YOGA_LOG_KEY);
-
-      // Use Sheets data as base; if Sheets has data, it's authoritative
-      const mergedWorkout = newWorkoutLog.length > 0 ? newWorkoutLog : localWorkout;
-      const mergedYoga = newYogaLog.length > 0 ? newYogaLog : localYoga;
+      // Sheets is source of truth when it has data; otherwise keep what's local
+      // (entries added offline that haven't synced yet).
+      const mergedWorkout = newWorkoutLog.length > 0 ? newWorkoutLog : loadLocal(WORKOUT_LOG_KEY);
+      const mergedYoga = newYogaLog.length > 0 ? newYogaLog : loadLocal(YOGA_LOG_KEY);
+      const mergedExercise = newExerciseLog.length > 0 ? newExerciseLog : loadLocal(EXERCISE_LOG_KEY);
 
       saveLocal(WORKOUT_LOG_KEY, mergedWorkout);
       saveLocal(YOGA_LOG_KEY, mergedYoga);
+      saveLocal(EXERCISE_LOG_KEY, mergedExercise);
 
       set({
         workoutLog: mergedWorkout,
         yogaLog: mergedYoga,
-        workoutProgram: Array.isArray(wProg) && wProg.length > 0 ? wProg : hardcodedProgram,
-        yogaPresets: Array.isArray(yPresets) && yPresets.length > 0 && yPresets[0].poses?.length > 0
-          ? yPresets
-          : hardcodedPresets,
+        exerciseLog: mergedExercise,
         loading: false,
       });
-      // Flush offline queue
       get().flushQueue();
     } catch (err) {
       set({ loading: false, error: err.message });
@@ -85,7 +82,6 @@ const useStore = create((set, get) => ({
   },
 
   addWorkoutLog: async (entry) => {
-    // Optimistic update + persist to localStorage
     set(s => {
       const updated = [...s.workoutLog, entry];
       saveLocal(WORKOUT_LOG_KEY, updated);
@@ -134,6 +130,30 @@ const useStore = create((set, get) => ({
     }
   },
 
+  // Written as a whole session at once, so one network round trip per workout.
+  // rows: [{ date, day_number, exercise, set_number, side, weight, reps }]
+  addExerciseLogs: async (rows) => {
+    if (!rows || rows.length === 0) return;
+    set(s => {
+      const updated = [...s.exerciseLog, ...rows];
+      saveLocal(EXERCISE_LOG_KEY, updated);
+      return { exerciseLog: updated };
+    });
+    const url = get().gasUrl;
+    if (!url) return;
+    const params = new URLSearchParams({
+      action: 'logExercises',
+      rows: JSON.stringify(rows),
+    });
+    try {
+      await fetch(`${url}?${params}`);
+    } catch {
+      const queue = getQueue();
+      queue.push({ type: 'logExercises', data: { rows: JSON.stringify(rows) } });
+      saveQueue(queue);
+    }
+  },
+
   // Remove the last skipped entry (undo skip)
   removeLastSkip: () => {
     set(s => {
@@ -157,7 +177,7 @@ const useStore = create((set, get) => ({
     const remaining = [];
     for (const item of queue) {
       try {
-        const params = new URLSearchParams({ action: item.type, ...item.data });
+        const params = new URLSearchParams({ action: item.type });
         Object.keys(item.data).forEach(k => params.set(k, String(item.data[k])));
         await fetch(`${url}?${params}`);
       } catch {

@@ -1,7 +1,13 @@
 // Google Apps Script - Deploy as Web App
 // Set: Execute as = Me, Who has access = Anyone
-
-const SPREADSHEET_ID = SpreadsheetApp.getActiveSpreadsheet().getId();
+//
+// Sheets used:
+//   workout_log   date | day_number | completed | duration_minutes | notes
+//   yoga_log      date | preset_name | completed | duration_minutes
+//   exercise_log  date | day_number | exercise | set_number | side | weight | reps
+//
+// Note: workout_program and yoga_presets are no longer read by the app.
+// Those menus now live in the source code.
 
 function doGet(e) {
   return handleRequest(e);
@@ -21,14 +27,11 @@ function handleRequest(e) {
       case 'getWorkoutLog':
         result = getSheetData('workout_log');
         break;
-      case 'getWorkoutProgram':
-        result = getSheetData('workout_program');
-        break;
       case 'getYogaLog':
         result = getSheetData('yoga_log');
         break;
-      case 'getYogaPresets':
-        result = getYogaPresets();
+      case 'getExerciseLog':
+        result = getSheetData('exercise_log');
         break;
       case 'logWorkout':
         result = appendRow('workout_log', [
@@ -47,6 +50,22 @@ function handleRequest(e) {
           parseFloat(params.duration_minutes)
         ]);
         break;
+      // Bulk write: the whole session's sets in one request.
+      // params.rows = JSON array of
+      //   { date, day_number, exercise, set_number, side, weight, reps }
+      case 'logExercises':
+        result = appendRows('exercise_log', JSON.parse(params.rows).map(function (r) {
+          return [
+            r.date,
+            parseInt(r.day_number),
+            r.exercise,
+            parseInt(r.set_number),
+            r.side || '',
+            parseFloat(r.weight) || 0,
+            r.reps || ''
+          ];
+        }));
+        break;
       default:
         result = { error: 'Unknown action: ' + action };
     }
@@ -61,65 +80,17 @@ function handleRequest(e) {
 
 function getSheetData(sheetName) {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(sheetName);
-  if (!sheet) return { error: 'Sheet not found: ' + sheetName };
-
-  const data = sheet.getDataRange().getValues();
-  if (data.length < 2) return [];
-
-  const headers = data[0];
-  const rows = data.slice(1).map(row => {
-    const obj = {};
-    headers.forEach((h, i) => {
-      obj[h] = row[i];
-    });
-    return obj;
-  });
-
-  return rows;
-}
-
-// Reads yoga_presets sheet and groups rows into preset objects.
-// Sheet columns: preset_id | preset_name | preset_description | pose_index
-//                | emoji | name | name_en | duration | guidance | voice_text
-function getYogaPresets() {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('yoga_presets');
   if (!sheet) return [];
 
   const data = sheet.getDataRange().getValues();
   if (data.length < 2) return [];
 
   const headers = data[0];
-  const rows = data.slice(1).map(row => {
+  return data.slice(1).map(function (row) {
     const obj = {};
-    headers.forEach((h, i) => { obj[h] = row[i]; });
+    headers.forEach(function (h, i) { obj[h] = row[i]; });
     return obj;
   });
-
-  // Group by preset_id, preserving order by pose_index
-  const map = {};
-  const order = [];
-  rows.forEach(r => {
-    const id = String(r.preset_id);
-    if (!map[id]) {
-      map[id] = {
-        id,
-        name: r.preset_name,
-        description: r.preset_description,
-        poses: [],
-      };
-      order.push(id);
-    }
-    map[id].poses.push({
-      emoji: r.emoji,
-      name: r.name,
-      nameEn: r.name_en,
-      duration: Number(r.duration),
-      guidance: r.guidance,
-      voiceText: r.voice_text,
-    });
-  });
-
-  return order.map(id => map[id]);
 }
 
 function appendRow(sheetName, values) {
@@ -128,4 +99,15 @@ function appendRow(sheetName, values) {
 
   sheet.appendRow(values);
   return { success: true };
+}
+
+function appendRows(sheetName, rows) {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(sheetName);
+  if (!sheet) return { error: 'Sheet not found: ' + sheetName };
+  if (!rows || rows.length === 0) return { success: true, count: 0 };
+
+  sheet
+    .getRange(sheet.getLastRow() + 1, 1, rows.length, rows[0].length)
+    .setValues(rows);
+  return { success: true, count: rows.length };
 }
