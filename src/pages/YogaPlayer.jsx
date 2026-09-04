@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import useStore from '../store/useStore'
 import useTimer from '../hooks/useTimer'
 import useVoice from '../hooks/useVoice'
+import useBeep from '../hooks/useBeep'
+import { sections } from '../data/yogaPresets'
 import styles from './YogaPlayer.module.css'
 
 function formatTime(seconds) {
@@ -12,8 +14,8 @@ function formatTime(seconds) {
 }
 
 function formatDuration(seconds) {
-  if (seconds >= 60) return `${Math.floor(seconds / 60)} min`
-  return `${seconds} sec`
+  if (seconds >= 120 && seconds % 60 === 0) return `${seconds / 60} 分`
+  return `${seconds} 秒`
 }
 
 function todayStr() {
@@ -22,111 +24,125 @@ function todayStr() {
 }
 
 const CIRCUMFERENCE = 2 * Math.PI * 72 // ~452.4
+const EXTEND_SECONDS = 30
+const SECTION_ORDINALS = ['一', '二', '三', '四', '五', '六', '七', '八', '九']
 
 export default function YogaPlayer() {
   const navigate = useNavigate()
   const addYogaLog = useStore(s => s.addYogaLog)
   const yogaPresets = useStore(s => s.yogaPresets)
-  const { remaining, running, done, startDown, stop, reset } = useTimer()
+  const { remaining, done, startDown, stop } = useTimer()
   const voice = useVoice()
+  const { beep, unlock } = useBeep()
 
-  const [phase, setPhase] = useState('select') // select | playing | transition | done
+  const [phase, setPhase] = useState('select') // select | playing | done
   const [preset, setPreset] = useState(null)
   const [poseIndex, setPoseIndex] = useState(0)
   const [paused, setPaused] = useState(false)
   const [showSidebar, setShowSidebar] = useState(false)
+  // Seconds added to the current pose by the +30 button; reset on every move.
+  const [extraSecs, setExtraSecs] = useState(0)
 
   const sessionStartRef = useRef(null)
   const halfwaySpokenRef = useRef(false)
-  const tenSecSpokenRef = useRef(false)
 
-  const currentPose = preset ? preset.poses[poseIndex] : null
-  const totalDuration = preset ? preset.poses.reduce((s, p) => s + p.duration, 0) : 0
+  const poses = useMemo(() => (preset ? preset.poses : []), [preset])
+  const currentPose = preset ? poses[poseIndex] : null
+  const poseDuration = currentPose ? currentPose.duration + extraSecs : 0
 
-  const elapsedPoses = useMemo(() => {
-    if (!preset) return 0
-    return preset.poses.slice(0, poseIndex).reduce((s, p) => s + p.duration, 0)
-  }, [preset, poseIndex])
+  const totalDuration = useMemo(() => poses.reduce((s, p) => s + p.duration, 0), [poses])
+
+  const elapsedPoses = useMemo(
+    () => poses.slice(0, poseIndex).reduce((s, p) => s + p.duration, 0),
+    [poses, poseIndex],
+  )
 
   const overallProgress = useMemo(() => {
-    if (!preset || totalDuration === 0) return 0
-    const poseElapsed = currentPose ? currentPose.duration - remaining : 0
+    if (!currentPose || totalDuration === 0) return 0
+    // Extended seconds don't stretch the bar — the routine is still the same
+    // length on paper, this pose just gets held longer.
+    const poseElapsed = Math.min(currentPose.duration, Math.max(0, poseDuration - remaining))
     return ((elapsedPoses + poseElapsed) / totalDuration) * 100
-  }, [preset, totalDuration, elapsedPoses, currentPose, remaining])
+  }, [currentPose, totalDuration, elapsedPoses, poseDuration, remaining])
 
   const overallRemaining = useMemo(() => {
     if (!preset) return 0
-    const futureTime = preset.poses.slice(poseIndex + 1).reduce((s, p) => s + p.duration, 0)
-    return remaining + futureTime
-  }, [preset, poseIndex, remaining])
+    return remaining + poses.slice(poseIndex + 1).reduce((s, p) => s + p.duration, 0)
+  }, [preset, poses, poseIndex, remaining])
 
-  // Ring progress
-  const ringOffset = currentPose ? CIRCUMFERENCE * (1 - remaining / currentPose.duration) : 0
+  // ─── Section progress ───────────────────────────────────────────
+  // Sections are numbered by their position in this preset, not by their index
+  // in the master list, so the shortened routine still reads 1..5.
+  const sectionIds = useMemo(() => [...new Set(poses.map(p => p.section))], [poses])
+  const sectionOf = currentPose ? currentPose.section : null
+  const sectionPos = sectionIds.indexOf(sectionOf)
+  const sectionPoses = useMemo(
+    () => poses.filter(p => p.section === sectionOf),
+    [poses, sectionOf],
+  )
+  const sectionDoneCount = useMemo(
+    () => poses.slice(0, poseIndex).filter(p => p.section === sectionOf).length,
+    [poses, poseIndex, sectionOf],
+  )
 
-  // Handle pose start
+  const ringOffset = poseDuration ? CIRCUMFERENCE * (1 - remaining / poseDuration) : 0
+
+  // The gap between poses is derived rather than a phase of its own: the timer
+  // stays `done` from the moment a pose ends until the next one starts it again.
+  const inTransition = phase === 'playing' && done && poseIndex < poses.length - 1
+
+  // What to say when a pose starts — the section is announced only on entry.
+  const announcementFor = useCallback((index) => {
+    const pose = poses[index]
+    if (!pose) return ''
+    const prev = index > 0 ? poses[index - 1] : null
+    if (prev && prev.section === pose.section) return pose.voiceText
+    const ordinal = SECTION_ORDINALS[sectionIds.indexOf(pose.section)] || ''
+    return `第${ordinal}段，${sections[pose.section]}。${pose.voiceText}`
+  }, [poses, sectionIds])
+
   const startPose = useCallback((index) => {
-    const pose = preset.poses[index]
     setPoseIndex(index)
+    setExtraSecs(0)
     halfwaySpokenRef.current = false
-    tenSecSpokenRef.current = false
-    startDown(pose.duration)
+    startDown(poses[index].duration)
     setPaused(false)
-    const poseNum = String(index + 1).padStart(2, '0')
-    setTimeout(() => voice.speak(pose.voiceText, { audioId: `pose_${poseNum}` }), 600)
-  }, [preset, startDown, voice])
+    setTimeout(() => voice.speak(announcementFor(index)), 600)
+  }, [poses, startDown, voice, announcementFor])
 
-  // Handle preset selection
   const selectPreset = useCallback((p) => {
     voice.initOnGesture()
+    unlock()
     setPreset(p)
     setPoseIndex(0)
+    setExtraSecs(0)
     setPhase('playing')
     sessionStartRef.current = Date.now()
     halfwaySpokenRef.current = false
-    tenSecSpokenRef.current = false
     startDown(p.poses[0].duration)
-    setTimeout(() => voice.speak(p.poses[0].voiceText, { audioId: 'pose_01' }), 600)
-  }, [startDown, voice])
+    const first = p.poses[0]
+    const ordinal = SECTION_ORDINALS[0]
+    setTimeout(
+      () => voice.speak(`第${ordinal}段，${sections[first.section]}。${first.voiceText}`),
+      600,
+    )
+  }, [startDown, voice, unlock])
 
-  // Voice warnings
+  // ─── Countdown beeps over the last 5 seconds ────────────────────
+  useEffect(() => {
+    if (phase !== 'playing' || paused || poseDuration < 15) return
+    if (remaining >= 1 && remaining <= 5) beep(880, 0.12)
+  }, [remaining, phase, paused, poseDuration, beep])
+
+  // Halfway cue, long holds only.
   useEffect(() => {
     if (phase !== 'playing' || !currentPose) return
-
-    // Halfway
-    if (currentPose.duration >= 120 && !halfwaySpokenRef.current) {
-      const halfway = Math.floor(currentPose.duration / 2)
-      if (remaining === halfway) {
-        halfwaySpokenRef.current = true
-        voice.speak('一半時間到，繼續保持，讓呼吸帶你更深入。', { audioId: 'halfway' })
-      }
+    if (poseDuration < 120 || halfwaySpokenRef.current) return
+    if (remaining === Math.floor(poseDuration / 2)) {
+      halfwaySpokenRef.current = true
+      voice.speak('一半時間到，繼續保持，讓呼吸帶你更深入。')
     }
-
-    // 10 seconds warning
-    if (!tenSecSpokenRef.current && remaining === 10) {
-      tenSecSpokenRef.current = true
-      voice.speak('還有十秒，準備緩慢起身。', { audioId: 'ten_sec' })
-    }
-  }, [remaining, phase, currentPose, voice])
-
-  // Handle timer done
-  useEffect(() => {
-    if (!done || phase !== 'playing') return
-
-    if (poseIndex < preset.poses.length - 1) {
-      // Transition
-      setPhase('transition')
-      const nextPose = preset.poses[poseIndex + 1]
-      const nextNum = String(poseIndex + 2).padStart(2, '0')
-      voice.speak(`接下來是${nextPose.name}。`, { audioId: `next_${nextNum}` })
-
-      setTimeout(() => {
-        setPhase('playing')
-        startPose(poseIndex + 1)
-      }, 3000)
-    } else {
-      finishSession()
-    }
-  }, [done, phase, poseIndex, preset, startPose, addYogaLog, voice])  // eslint-disable-line
+  }, [remaining, phase, currentPose, poseDuration, voice])
 
   const finishSession = useCallback(() => {
     const totalMins = Math.round((Date.now() - sessionStartRef.current) / 60000 * 10) / 10
@@ -139,8 +155,23 @@ export default function YogaPlayer() {
     stop()
     voice.cancel()
     setPhase('done')
-    voice.speak('練習圓滿完成。讓身體靜靜整合。願你帶著這份寧靜進入今天的其餘時光。', { audioId: 'finish' })
+    voice.speak('練習結束了，做得很好。讓身體靜靜整合。')
   }, [preset, addYogaLog, stop, voice])
+
+  // Pose finished — chime, then hand over to the next one.
+  useEffect(() => {
+    if (!done || phase !== 'playing') return
+    beep(1200, 0.3)
+
+    if (poseIndex >= poses.length - 1) {
+      finishSession()
+      return
+    }
+    const nextPose = poses[poseIndex + 1]
+    voice.speak(`準備，接下來${nextPose.name}${nextPose.side ? `，${nextPose.side}邊` : ''}。`)
+    const t = setTimeout(() => startPose(poseIndex + 1), 3000)
+    return () => clearTimeout(t)
+  }, [done, phase, poseIndex, poses, startPose, voice, beep, finishSession])
 
   const togglePause = useCallback(() => {
     if (paused) {
@@ -153,6 +184,13 @@ export default function YogaPlayer() {
     }
   }, [paused, remaining, startDown, stop, voice])
 
+  // Hold this pose 30 seconds longer without disturbing the rest of the queue.
+  const extendPose = useCallback(() => {
+    unlock()
+    setExtraSecs(e => e + EXTEND_SECONDS)
+    if (!paused) startDown(remaining + EXTEND_SECONDS)
+  }, [paused, remaining, startDown, unlock])
+
   const goPrev = useCallback(() => {
     if (poseIndex > 0) {
       stop()
@@ -162,12 +200,12 @@ export default function YogaPlayer() {
   }, [poseIndex, stop, voice, startPose])
 
   const goNext = useCallback(() => {
-    if (preset && poseIndex < preset.poses.length - 1) {
+    if (poseIndex < poses.length - 1) {
       stop()
       voice.cancel()
       startPose(poseIndex + 1)
     }
-  }, [preset, poseIndex, stop, voice, startPose])
+  }, [poses, poseIndex, stop, voice, startPose])
 
   const jumpToPose = useCallback((index) => {
     stop()
@@ -178,7 +216,6 @@ export default function YogaPlayer() {
 
   // === RENDER ===
 
-  // Preset selection
   if (phase === 'select') {
     return (
       <div className="page">
@@ -186,15 +223,15 @@ export default function YogaPlayer() {
           &larr; Back
         </button>
         <div className={styles.selectHeader}>
-          <h2>Select Yoga Routine</h2>
-          <p className={styles.selectSub}>陰瑜伽引導計時器</p>
+          <h2>Select Stretch Routine</h2>
+          <p className={styles.selectSub}>五段式全身伸展</p>
         </div>
         <div className={styles.presetList}>
           {yogaPresets.map(p => (
             <button key={p.id} className={`card ${styles.presetCard}`} onClick={() => selectPreset(p)}>
               <div className={styles.presetName}>{p.name}</div>
               <div className={styles.presetDesc}>{p.description}</div>
-              <div className={styles.presetMeta}>{p.poses.length} poses</div>
+              <div className={styles.presetMeta}>{p.poses.length} poses · {p.duration} min</div>
             </button>
           ))}
         </div>
@@ -202,21 +239,22 @@ export default function YogaPlayer() {
     )
   }
 
-  // Transition overlay
-  if (phase === 'transition') {
-    const nextPose = preset.poses[poseIndex + 1]
+  if (inTransition) {
+    const nextPose = poses[poseIndex + 1]
     return (
       <div className={styles.transitionOverlay}>
         <div className={styles.transitionContent}>
           <div className={styles.transitionEmoji}>{nextPose.emoji}</div>
-          <div className={styles.transitionName}>{nextPose.name}</div>
+          <div className={styles.transitionName}>
+            {nextPose.name}
+            {nextPose.side && <em className={styles.transitionSide}>{nextPose.side}</em>}
+          </div>
           <div className={styles.transitionMeta}>{formatDuration(nextPose.duration)}</div>
         </div>
       </div>
     )
   }
 
-  // Completion
   if (phase === 'done') {
     return (
       <div className="page">
@@ -225,7 +263,7 @@ export default function YogaPlayer() {
           <h2 className={styles.doneTitle}>練習圓滿完成</h2>
           <p className={styles.doneText}>
             {preset.name}<br />
-            {preset.poses.length} poses completed
+            {poses.length} poses completed
           </p>
           <button className="btn btn-primary" onClick={() => navigate('/')} style={{ width: '100%', marginTop: 16 }}>
             Back to Calendar
@@ -235,22 +273,41 @@ export default function YogaPlayer() {
     )
   }
 
-  // Active playing
   return (
     <div className="page">
-      {/* Progress bar */}
+      {/* Overall progress */}
       <div className={styles.progressWrap}>
         <div className={styles.progressFill} style={{ width: `${overallProgress}%` }} />
       </div>
       <div className={styles.progressLabels}>
-        <span>{poseIndex + 1} / {preset.poses.length}</span>
+        <span>{poseIndex + 1} / {poses.length}</span>
         <span>{formatTime(overallRemaining)}</span>
+      </div>
+
+      {/* Section progress */}
+      <div className={styles.sectionBar}>
+        <div className={styles.sectionHead}>
+          <span className={styles.sectionIndex}>{sectionPos + 1} / {sectionIds.length}</span>
+          <span className={styles.sectionTitle}>{sections[sectionOf]}</span>
+          <span className={styles.sectionCount}>{sectionDoneCount + 1} / {sectionPoses.length}</span>
+        </div>
+        <div className={styles.sectionDots}>
+          {sectionIds.map((sid, i) => (
+            <span
+              key={sid}
+              className={`${styles.sectionDot} ${i < sectionPos ? styles.sectionDotDone : ''} ${i === sectionPos ? styles.sectionDotNow : ''}`}
+            />
+          ))}
+        </div>
       </div>
 
       {/* Main card */}
       <div className={`card ${styles.mainCard}`}>
         <span className={styles.poseEmoji}>{currentPose.emoji}</span>
-        <div className={styles.poseName}>{currentPose.name}</div>
+        <div className={styles.poseName}>
+          {currentPose.name}
+          {currentPose.side && <em className={styles.poseSide}>{currentPose.side}</em>}
+        </div>
         <div className={styles.poseNameEn}>{currentPose.nameEn}</div>
 
         {/* Timer ring */}
@@ -258,17 +315,23 @@ export default function YogaPlayer() {
           <svg viewBox="0 0 160 160" className={styles.timerSvg}>
             <circle className={styles.ringBg} cx="80" cy="80" r="72" />
             <circle
-              className={styles.ringProgress}
+              className={`${styles.ringProgress} ${remaining <= 5 ? styles.ringWarn : ''}`}
               cx="80" cy="80" r="72"
               strokeDasharray={CIRCUMFERENCE}
               strokeDashoffset={ringOffset}
             />
           </svg>
           <div className={styles.timerCenter}>
-            <div className={styles.timerDigits}>{formatTime(remaining)}</div>
-            <div className={styles.timerLabel}>{paused ? '\u66AB\u505C\u4E2D' : '\u9032\u884C\u4E2D'}</div>
+            <div className={`${styles.timerDigits} ${remaining <= 5 ? styles.timerWarn : ''}`}>
+              {formatTime(remaining)}
+            </div>
+            <div className={styles.timerLabel}>
+              {paused ? '暫停中' : extraSecs > 0 ? `已加 ${extraSecs} 秒` : '進行中'}
+            </div>
           </div>
         </div>
+
+        <button className={styles.extendBtn} onClick={extendPose}>+30 秒</button>
 
         {/* Guidance */}
         <div className={styles.guidanceBox}>
@@ -285,9 +348,9 @@ export default function YogaPlayer() {
           className={`btn ${paused ? 'btn-primary' : 'btn-secondary'} ${styles.playBtn}`}
           onClick={togglePause}
         >
-          {paused ? '\u7E7C\u7E8C' : '\u66AB\u505C'}
+          {paused ? '繼續' : '暫停'}
         </button>
-        {poseIndex < preset.poses.length - 1 ? (
+        {poseIndex < poses.length - 1 ? (
           <button className="btn btn-secondary" onClick={goNext}>&rarr;</button>
         ) : (
           <button className={`btn btn-gold ${styles.finishBtn}`} onClick={finishSession}>完成</button>
@@ -316,18 +379,25 @@ export default function YogaPlayer() {
       {showSidebar && (
         <div className={`card ${styles.poseList}`}>
           <div className={styles.poseListHeader}>課表總覽</div>
-          {preset.poses.map((p, i) => (
-            <div
-              key={i}
-              className={`${styles.poseItem} ${i === poseIndex ? styles.poseItemActive : ''} ${i < poseIndex ? styles.poseItemDone : ''}`}
-              onClick={() => jumpToPose(i)}
-            >
-              <span className={styles.poseItemEmoji}>{p.emoji}</span>
-              <div className={styles.poseItemInfo}>
-                <div className={styles.poseItemName}>{p.name}</div>
-                <div className={styles.poseItemDur}>{formatDuration(p.duration)}</div>
+          {poses.map((p, i) => (
+            <div key={p.id}>
+              {(i === 0 || poses[i - 1].section !== p.section) && (
+                <div className={styles.poseListSection}>{sections[p.section]}</div>
+              )}
+              <div
+                className={`${styles.poseItem} ${i === poseIndex ? styles.poseItemActive : ''} ${i < poseIndex ? styles.poseItemDone : ''}`}
+                onClick={() => jumpToPose(i)}
+              >
+                <span className={styles.poseItemEmoji}>{p.emoji}</span>
+                <div className={styles.poseItemInfo}>
+                  <div className={styles.poseItemName}>
+                    {p.name}
+                    {p.side && <em className={styles.poseItemSide}>{p.side}</em>}
+                  </div>
+                  <div className={styles.poseItemDur}>{formatDuration(p.duration)}</div>
+                </div>
+                {i === poseIndex && <span className={styles.activeDot} />}
               </div>
-              {i === poseIndex && <span className={styles.activeDot} />}
             </div>
           ))}
         </div>

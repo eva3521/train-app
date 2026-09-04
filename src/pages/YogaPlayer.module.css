@@ -81,6 +81,14 @@
   margin-bottom: 8px;
 }
 
+.transitionSide {
+  font-style: normal;
+  font-size: 13px;
+  color: var(--accent);
+  margin-left: 8px;
+  letter-spacing: 0.1em;
+}
+
 .transitionMeta {
   font-size: 12px;
   color: var(--text-muted);
@@ -111,6 +119,68 @@
   color: var(--text-muted);
 }
 
+/* Section progress */
+.sectionBar {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.sectionHead {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.sectionIndex {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.sectionTitle {
+  font-family: 'Noto Serif TC', serif;
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  color: var(--text-dim);
+  flex: 1;
+}
+
+.sectionCount {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.sectionDots {
+  display: flex;
+  gap: 4px;
+}
+
+.sectionDot {
+  flex: 1;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--surface2);
+  transition: background 0.4s ease;
+}
+
+.sectionDotDone {
+  background: var(--accent-dim);
+}
+
+.sectionDotNow {
+  background: var(--accent);
+}
+
 /* Main card */
 .mainCard {
   text-align: center;
@@ -131,6 +201,18 @@
   letter-spacing: 0.08em;
   color: var(--text);
   margin-bottom: 4px;
+}
+
+.poseSide {
+  font-style: normal;
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  color: var(--accent);
+  border: 1px solid var(--accent-dim);
+  border-radius: 4px;
+  padding: 2px 7px;
+  margin-left: 10px;
+  vertical-align: 4px;
 }
 
 .poseNameEn {
@@ -170,6 +252,11 @@
   filter: drop-shadow(0 0 6px rgba(123,108,255,0.5));
 }
 
+.ringWarn {
+  stroke: var(--gold);
+  filter: drop-shadow(0 0 6px rgba(201,169,110,0.6));
+}
+
 .timerCenter {
   position: absolute;
   inset: 0;
@@ -193,6 +280,33 @@
   letter-spacing: 0.15em;
   color: var(--text-muted);
   margin-top: 4px;
+}
+
+.timerWarn {
+  color: var(--gold);
+}
+
+.extendBtn {
+  display: block;
+  margin: 0 auto 20px;
+  padding: 8px 20px;
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  color: var(--text-dim);
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.extendBtn:hover {
+  color: var(--accent);
+  border-color: var(--accent-dim);
+}
+
+.extendBtn:active {
+  transform: scale(0.96);
 }
 
 /* Guidance */
@@ -326,6 +440,15 @@
   text-transform: uppercase;
 }
 
+.poseListSection {
+  padding: 12px 20px 6px;
+  font-family: 'Noto Serif TC', serif;
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  color: var(--accent);
+  background: rgba(123, 108, 255, 0.04);
+}
+
 .poseItem {
   display: flex;
   align-items: center;
@@ -368,6 +491,14 @@
 .poseItemName {
   font-size: 13px;
   color: var(--text);
+}
+
+.poseItemSide {
+  font-style: normal;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  color: var(--accent);
+  margin-left: 6px;
 }
 
 .poseItemDur {

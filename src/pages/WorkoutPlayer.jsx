@@ -2,6 +2,7 @@ import { useState, useMemo, useCallback, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import useStore from '../store/useStore'
 import useTimer from '../hooks/useTimer'
+import useBeep from '../hooks/useBeep'
 import Confetti from '../components/Confetti'
 import styles from './WorkoutPlayer.module.css'
 
@@ -41,6 +42,7 @@ export default function WorkoutPlayer() {
 
   // Single timer for session elapsed (Web Worker, iOS safe)
   const { elapsed, startUp, stop: stopElapsed, reset: resetElapsed } = useTimer()
+  const { beep, unlock } = useBeep()
 
   // Rest countdown via setInterval ref (simpler, no second Worker needed)
   const restIntervalRef = useRef(null)
@@ -122,35 +124,6 @@ export default function WorkoutPlayer() {
   const totalSets = currentEx?.sets ?? 1
   const sideLabel = currentEx?.symmetric ? (side === 'left' ? '左邊' : '右邊') : null
 
-  // ─── Beep via Web Audio API ─────────────────────────────────────
-  const audioCtxRef = useRef(null)
-  const getAudioCtx = useCallback(() => {
-    if (!audioCtxRef.current) {
-      audioCtxRef.current = new (window.AudioContext || window.webkitAudioContext)()
-    }
-    // Resume if suspended (iOS requires user gesture)
-    if (audioCtxRef.current.state === 'suspended') {
-      audioCtxRef.current.resume()
-    }
-    return audioCtxRef.current
-  }, [])
-
-  const playBeep = useCallback((freq = 880, duration = 0.15) => {
-    try {
-      const ctx = getAudioCtx()
-      const osc = ctx.createOscillator()
-      const gain = ctx.createGain()
-      osc.type = 'square'
-      osc.frequency.value = freq
-      gain.gain.setValueAtTime(0.3, ctx.currentTime)
-      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + duration)
-      osc.connect(gain)
-      gain.connect(ctx.destination)
-      osc.start(ctx.currentTime)
-      osc.stop(ctx.currentTime + duration)
-    } catch { /* silent fail */ }
-  }, [getAudioCtx])
-
   // ─── Rest timer (setInterval, no Worker) ───────────────────────
   const beginRest = useCallback((duration) => {
     clearInterval(restIntervalRef.current)
@@ -164,13 +137,13 @@ export default function WorkoutPlayer() {
         restIntervalRef.current = null
         setRestSecs(0)
         setRestFinished(true)
-        playBeep(1200, 0.3) // Final beep — higher pitch, longer
+        beep(1200, 0.3) // Final beep — higher pitch, longer
       } else {
         setRestSecs(s)
-        if (s <= 5 && s >= 1) playBeep(880, 0.15) // Last 5 seconds — short beeps
+        if (s <= 5 && s >= 1) beep(880, 0.15) // Last 5 seconds — short beeps
       }
     }, 1000)
-  }, [playBeep])
+  }, [beep])
 
   const cancelRest = useCallback(() => {
     clearInterval(restIntervalRef.current)
@@ -326,7 +299,7 @@ export default function WorkoutPlayer() {
 
   // ─── Phase transitions ─────────────────────────────────────────
   const handleStart = useCallback(() => {
-    getAudioCtx() // Init AudioContext on user gesture (iOS)
+    unlock() // Init AudioContext on user gesture (iOS)
     setExIdx(0); setSetNum(1); setSide('left')
     setResting(false); setAllExDone(false); setPrevStep(null)
     pendingRef.current = null
@@ -335,7 +308,7 @@ export default function WorkoutPlayer() {
     setAskWeight(false)
     setPhase('active')
     startUp()
-  }, [startUp, getAudioCtx])
+  }, [startUp, unlock])
 
   const handleComplete = useCallback(() => {
     stopElapsed(); cancelRest()

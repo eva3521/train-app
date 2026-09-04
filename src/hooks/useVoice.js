@@ -1,126 +1,80 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 
 /**
- * Yoga voice guidance hook.
+ * Yoga voice guidance via the Web Speech API.
  *
- * Supports two modes:
- * 1. Pre-recorded audio files (warm, natural) — files in /audio/yoga/*.mp3
- * 2. Fallback to Web Speech API if audio file not found
- *
- * Usage:
- *   speak('some text')                      → speechSynthesis fallback
- *   speak('some text', { audioId: 'pose_01' }) → plays /audio/yoga/pose_01.mp3
+ * Devices ship wildly different Chinese voices, so pick deliberately rather
+ * than taking whatever getVoices() lists first: zh-TW over other Chinese
+ * locales, and the enhanced/neural builds over the compact ones, which sound
+ * robotic enough to be distracting during a long hold.
  */
+function voiceScore(v) {
+  const label = `${v.name || ''} ${v.voiceURI || ''}`;
+  let score = 0;
+  if (/zh[-_]TW/i.test(v.lang)) score += 100;
+  else if (/zh[-_](HK|CN)/i.test(v.lang)) score += 60;
+  else if (/^zh/i.test(v.lang)) score += 40;
+  if (/enhanced|premium|neural|natural|加強|優質/i.test(label)) score += 50;
+  if (/siri/i.test(label)) score += 40;
+  if (/美佳|mei-?jia/i.test(label)) score += 20;
+  if (/婷婷|ting-?ting/i.test(label)) score += 10;
+  if (/compact|eloquence|espeak/i.test(label)) score -= 40;
+  if (!v.localService) score += 15; // cloud voices are usually the natural ones
+  return score;
+}
+
 export default function useVoice() {
   const [enabled, setEnabled] = useState(true);
   const [ready, setReady] = useState(false);
   const voiceRef = useRef(null);
   const initedRef = useRef(false);
-  const currentAudioRef = useRef(null);
 
-  // Load voices (fallback)
   useEffect(() => {
+    if (!('speechSynthesis' in window)) return;
     const loadVoices = () => {
-      const voices = speechSynthesis.getVoices();
-      voiceRef.current =
-        voices.find(v => v.lang === 'zh-TW') ||
-        voices.find(v => v.lang.startsWith('zh') && (v.lang.includes('TW') || v.lang.includes('HK'))) ||
-        voices.find(v => v.lang.startsWith('zh')) ||
-        null;
-      if (voices.length > 0) setReady(true);
+      const all = speechSynthesis.getVoices();
+      if (all.length === 0) return;
+      const zh = all.filter(v => /^zh/i.test(v.lang));
+      const pool = zh.length > 0 ? zh : all;
+      voiceRef.current = pool.slice().sort((a, b) => voiceScore(b) - voiceScore(a))[0] || null;
+      setReady(true);
     };
     loadVoices();
     speechSynthesis.onvoiceschanged = loadVoices;
+    return () => { speechSynthesis.onvoiceschanged = null; };
   }, []);
 
-  // Init on first gesture (for iOS autoplay policy)
+  // iOS only allows speech that descends from a user gesture, so burn a silent
+  // utterance on the first tap to unlock the queue for the rest of the session.
   const initOnGesture = useCallback(() => {
-    if (initedRef.current) return;
+    if (initedRef.current || !('speechSynthesis' in window)) return;
     initedRef.current = true;
-    // Unlock speechSynthesis
     const u = new SpeechSynthesisUtterance('');
     u.volume = 0;
     speechSynthesis.speak(u);
-    // Unlock Audio context by playing a silent audio
+  }, []);
+
+  const speak = useCallback((text) => {
+    if (!enabled || !text || !('speechSynthesis' in window)) return;
     try {
-      const a = new Audio();
-      a.volume = 0;
-      a.play().catch(() => {});
-    } catch { /* ok */ }
-  }, []);
-
-  // Play pre-recorded mp3
-  const playAudio = useCallback((audioId) => {
-    return new Promise((resolve, reject) => {
-      const url = `${import.meta.env.BASE_URL}audio/yoga/${audioId}.mp3`;
-      const audio = new Audio(url);
-      audio.volume = 1;
-      currentAudioRef.current = audio;
-
-      audio.onended = () => {
-        currentAudioRef.current = null;
-        resolve();
-      };
-      audio.onerror = () => {
-        currentAudioRef.current = null;
-        reject(new Error('Audio file not found'));
-      };
-      audio.play().catch(reject);
-    });
-  }, []);
-
-  // Speak with speechSynthesis (fallback)
-  const speakTTS = useCallback((text) => {
-    speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(text);
-    u.lang = 'zh-TW';
-    u.rate = 0.85;
-    u.pitch = 0.95;
-    u.volume = 1;
-    if (voiceRef.current) u.voice = voiceRef.current;
-    speechSynthesis.speak(u);
-  }, []);
-
-  /**
-   * speak(text, options?)
-   * options.audioId — if provided, tries pre-recorded file first
-   */
-  const speak = useCallback((text, options) => {
-    if (!enabled || !text) return;
-
-    // Stop any current playback
-    if (currentAudioRef.current) {
-      currentAudioRef.current.pause();
-      currentAudioRef.current = null;
-    }
-    speechSynthesis.cancel();
-
-    const audioId = options?.audioId;
-    if (audioId) {
-      // Try pre-recorded audio, fall back to TTS
-      playAudio(audioId).catch(() => speakTTS(text));
-    } else {
-      speakTTS(text);
-    }
-  }, [enabled, playAudio, speakTTS]);
+      speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = voiceRef.current ? voiceRef.current.lang : 'zh-TW';
+      if (voiceRef.current) u.voice = voiceRef.current;
+      u.rate = 0.95;
+      u.pitch = 1;
+      u.volume = 1;
+      speechSynthesis.speak(u);
+    } catch { /* speech is optional, never break the timer over it */ }
+  }, [enabled]);
 
   const cancel = useCallback(() => {
-    if (currentAudioRef.current) {
-      currentAudioRef.current.pause();
-      currentAudioRef.current = null;
-    }
-    speechSynthesis.cancel();
+    if ('speechSynthesis' in window) speechSynthesis.cancel();
   }, []);
 
   const toggle = useCallback(() => {
     setEnabled(prev => {
-      if (prev) {
-        if (currentAudioRef.current) {
-          currentAudioRef.current.pause();
-          currentAudioRef.current = null;
-        }
-        speechSynthesis.cancel();
-      }
+      if (prev && 'speechSynthesis' in window) speechSynthesis.cancel();
       return !prev;
     });
   }, []);
