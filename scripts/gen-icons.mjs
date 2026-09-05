@@ -26,14 +26,10 @@ function chunk(type, data) {
 }
 
 // --- Palette ---------------------------------------------------------------
-const BG = [0x0a, 0x0a, 0x0c];        // outside the disc
-const DISC = [0x11, 0x11, 0x16];      // inner disc
-const RING = [0x3d, 0x36, 0x80];      // accent ring
+const BG = [0x11, 0x11, 0x16];        // flat dark background
 const PEACH_LIGHT = [0xff, 0xd6, 0xa0];
 const PEACH_DARK = [0xe2, 0x4c, 0x3e];
 const PEACH_SHEEN = [0xff, 0xee, 0xd2];
-const LEAF = [0x56, 0xb0, 0x60];
-const LEAF_VEIN = [0x39, 0x8c, 0x4a];
 const STEM = [0x6b, 0x3f, 0x2a];
 
 const clamp = (n, lo, hi) => (n < lo ? lo : n > hi ? hi : n);
@@ -44,18 +40,18 @@ const mix = (a, b, t) => [
 ];
 
 // Geometry in normalized coords: (0,0) is the icon center, 1 unit = icon size.
-const DISC_R = 0.42;
-const RING_R = 0.48;
-const FRUIT = { cx: 0, cy: 0.035, rx: 0.225, ry: 0.215 };  // peach body
-const NOTCH = { cx: 0, cy: -0.245, r: 0.115 };             // cleft carved out of the top
-const LEAF_SHAPE = { cx: 0.095, cy: -0.238, rx: 0.085, ry: 0.038, ang: -0.70 };
-const STEM_A = [0.004, -0.132];
-const STEM_B = [0.028, -0.225];
+// The peach body is the classic heart curve flipped vertically: tip at the top,
+// two round lobes at the bottom with a cleft between them.
+const HEART = { s: 0.30, cy: -0.0435 };
+const STEM_A = [0.000, -0.322];
+const STEM_B = [0.022, -0.386];
 const STEM_W = 0.012;
 
-function inEllipse(u, v, e) {
-  const du = (u - e.cx) / e.rx, dv = (v - e.cy) / e.ry;
-  return du * du + dv * dv <= 1;
+function inHeart(u, v) {
+  const x = u / HEART.s;
+  const y = (v - HEART.cy) / HEART.s; // v grows downward, so this flips the heart
+  const a = x * x + y * y - 1;
+  return a * a * a - x * x * y * y * y <= 0;
 }
 
 function distToSegment(u, v, a, b) {
@@ -66,40 +62,29 @@ function distToSegment(u, v, a, b) {
 
 // Color of a single sample point, in normalized coords.
 function shade(u, v) {
-  const dist = Math.hypot(u, v);
+  let col = BG;
 
-  let col = dist < DISC_R ? DISC : dist < RING_R ? RING : BG;
-
-  // Peach body: an ellipse with a round notch carved out of the top.
-  if (inEllipse(u, v, FRUIT) &&
-      Math.hypot(u - NOTCH.cx, v - NOTCH.cy) > NOTCH.r) {
+  if (inHeart(u, v)) {
     // Diagonal gradient: warm highlight top-left, deep red bottom-right.
-    col = mix(PEACH_LIGHT, PEACH_DARK, clamp((u + v + 0.30) / 0.62, 0, 1));
+    col = mix(PEACH_LIGHT, PEACH_DARK, clamp((u + v + 0.34) / 0.68, 0, 1));
 
-    // Soft sheen on the upper-left lobe.
-    const sheen = 1 - clamp(Math.hypot(u + 0.095, v + 0.055) / 0.085, 0, 1);
+    // Soft sheen on the upper-left flank.
+    const sheen = 1 - clamp(Math.hypot(u + 0.100, v + 0.030) / 0.100, 0, 1);
     if (sheen > 0) col = mix(col, PEACH_SHEEN, sheen * sheen * 0.55);
 
-    // Soft crease running down from the cleft, fading out before the bottom.
-    const creaseTop = -0.135, creaseBottom = 0.10;
+    // Crease rising out of the bottom cleft, fading out toward the tip.
+    const creaseBottom = HEART.cy + HEART.s * 0.98;
+    const creaseTop = HEART.cy - HEART.s * 0.35;
     if (v > creaseTop && v < creaseBottom) {
-      const lineX = 0.018 * Math.sin((v - creaseTop) * 4.5);
+      const lineX = 0.016 * Math.sin((creaseBottom - v) * 4.0);
       const edge = 1 - clamp(Math.abs(u - lineX) / 0.018, 0, 1);
-      const fade = clamp((creaseBottom - v) / 0.12, 0, 1);
-      col = mix(col, [0, 0, 0], edge * fade * 0.17);
+      const fade = clamp((v - creaseTop) / 0.14, 0, 1);
+      col = mix(col, [0, 0, 0], edge * fade * 0.18);
     }
   }
 
-  // Stem.
+  // Stem at the tip.
   if (distToSegment(u, v, STEM_A, STEM_B) < STEM_W) col = STEM;
-
-  // Leaf: an ellipse rotated so its tip points up and to the right.
-  const du = u - LEAF_SHAPE.cx, dv = v - LEAF_SHAPE.cy;
-  const ca = Math.cos(LEAF_SHAPE.ang), sa = Math.sin(LEAF_SHAPE.ang);
-  const lx = du * ca + dv * sa, ly = -du * sa + dv * ca;
-  if ((lx / LEAF_SHAPE.rx) ** 2 + (ly / LEAF_SHAPE.ry) ** 2 <= 1) {
-    col = Math.abs(ly) < 0.006 ? LEAF_VEIN : LEAF;
-  }
 
   return col;
 }
