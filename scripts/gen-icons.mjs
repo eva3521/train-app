@@ -31,6 +31,8 @@ const PEACH_LIGHT = [0xff, 0xd6, 0xa0];
 const PEACH_DARK = [0xe2, 0x4c, 0x3e];
 const PEACH_SHEEN = [0xff, 0xee, 0xd2];
 const STEM = [0x6b, 0x3f, 0x2a];
+const THONG_LIGHT = [0x7c, 0xa8, 0xff];
+const THONG_DARK = [0x1f, 0x45, 0xb8];
 
 const clamp = (n, lo, hi) => (n < lo ? lo : n > hi ? hi : n);
 const mix = (a, b, t) => [
@@ -46,6 +48,10 @@ const HEART = { s: 0.30, cy: -0.0435 };
 const STEM_A = [0.000, -0.322];
 const STEM_B = [0.022, -0.386];
 const STEM_W = 0.012;
+const BAND_Y = -0.125;      // waistband height at the hips
+const BAND_DIP = 0.140;     // how far it dips into a V at the center
+const BAND_SPAN = 0.30;     // half-width over which the dip flattens out
+const BAND_HALF_T = 0.021;  // half thickness of the band
 
 function inHeart(u, v) {
   const x = u / HEART.s;
@@ -80,6 +86,17 @@ function shade(u, v) {
       const edge = 1 - clamp(Math.abs(u - lineX) / 0.018, 0, 1);
       const fade = clamp((v - creaseTop) / 0.14, 0, 1);
       col = mix(col, [0, 0, 0], edge * fade * 0.18);
+    }
+
+    // Thong: a waistband dipping to a V at the center, plus a narrow strip
+    // running down the crease from it. Lit like the body so the two agree.
+    const bandY = BAND_Y + BAND_DIP * (1 - clamp(Math.abs(u) / BAND_SPAN, 0, 1)) ** 1.4;
+    const onBand = Math.abs(v - bandY) < BAND_HALF_T;
+    const stripX = 0.016 * Math.sin((creaseBottom - v) * 4.0);
+    const stripW = 0.026 - 0.010 * clamp((v - BAND_Y) / 0.34, 0, 1);
+    const onStrip = v > bandY - BAND_HALF_T && Math.abs(u - stripX) < stripW;
+    if (onBand || onStrip) {
+      col = mix(THONG_LIGHT, THONG_DARK, clamp((u + v + 0.34) / 0.68, 0, 1));
     }
   }
 
