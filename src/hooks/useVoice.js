@@ -54,8 +54,9 @@ export default function useVoice() {
     speechSynthesis.speak(u);
   }, []);
 
-  const speak = useCallback((text) => {
-    if (!enabled || !text || !('speechSynthesis' in window)) return;
+  // Raw speech with no gating. Everything below goes through this.
+  const say = useCallback((text) => {
+    if (!text || !('speechSynthesis' in window)) return;
     try {
       speechSynthesis.cancel();
       const u = new SpeechSynthesisUtterance(text);
@@ -66,7 +67,20 @@ export default function useVoice() {
       u.volume = 1;
       speechSynthesis.speak(u);
     } catch { /* speech is optional, never break the timer over it */ }
-  }, [enabled]);
+  }, []);
+
+  // What a pose is and how long it runs is the one thing you cannot get from
+  // a glance at the mat, so the toggle never silences it — it only decides
+  // whether the coaching detail is read out after the name.
+  const announce = useCallback((headline, detail) => {
+    say(enabled && detail ? `${headline}${detail}` : headline);
+  }, [say, enabled]);
+
+  // Optional commentary: cues, halfway calls, the closing line.
+  const speak = useCallback((text) => {
+    if (!enabled) return;
+    say(text);
+  }, [say, enabled]);
 
   const cancel = useCallback(() => {
     if ('speechSynthesis' in window) speechSynthesis.cancel();
@@ -79,5 +93,5 @@ export default function useVoice() {
     });
   }, []);
 
-  return { enabled, ready, speak, cancel, toggle, initOnGesture };
+  return { enabled, ready, speak, announce, cancel, toggle, initOnGesture };
 }

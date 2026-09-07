@@ -27,6 +27,10 @@ const CIRCUMFERENCE = 2 * Math.PI * 72 // ~452.4
 const EXTEND_SECONDS = 30
 const SECTION_ORDINALS = ['一', '二', '三', '四', '五', '六', '七', '八', '九']
 
+// The spoken headline for a pose. Always announced; `guidance` is the part the
+// voice toggle can silence.
+const poseHeadline = (pose) => `${pose.name}${pose.side ? `，${pose.side}邊` : ''}，${pose.duration}秒。`
+
 export default function YogaPlayer() {
   const navigate = useNavigate()
   const addYogaLog = useStore(s => s.addYogaLog)
@@ -92,13 +96,13 @@ export default function YogaPlayer() {
   const inTransition = phase === 'playing' && done && poseIndex < poses.length - 1
 
   // What to say when a pose starts — the section is announced only on entry.
-  const announcementFor = useCallback((index) => {
+  const headlineFor = useCallback((index) => {
     const pose = poses[index]
     if (!pose) return ''
     const prev = index > 0 ? poses[index - 1] : null
-    if (prev && prev.section === pose.section) return pose.voiceText
+    if (prev && prev.section === pose.section) return poseHeadline(pose)
     const ordinal = SECTION_ORDINALS[sectionIds.indexOf(pose.section)] || ''
-    return `第${ordinal}段，${sections[pose.section]}。${pose.voiceText}`
+    return `第${ordinal}段，${sections[pose.section]}。${poseHeadline(pose)}`
   }, [poses, sectionIds])
 
   const startPose = useCallback((index) => {
@@ -107,8 +111,8 @@ export default function YogaPlayer() {
     halfwaySpokenRef.current = false
     startDown(poses[index].duration)
     setPaused(false)
-    setTimeout(() => voice.speak(announcementFor(index)), 600)
-  }, [poses, startDown, voice, announcementFor])
+    setTimeout(() => voice.announce(headlineFor(index), poses[index].guidance), 600)
+  }, [poses, startDown, voice, headlineFor])
 
   const selectPreset = useCallback((p) => {
     voice.initOnGesture()
@@ -123,7 +127,10 @@ export default function YogaPlayer() {
     const first = p.poses[0]
     const ordinal = SECTION_ORDINALS[0]
     setTimeout(
-      () => voice.speak(`第${ordinal}段，${sections[first.section]}。${first.voiceText}`),
+      () => voice.announce(
+        `第${ordinal}段，${sections[first.section]}。${poseHeadline(first)}`,
+        first.guidance,
+      ),
       600,
     )
   }, [startDown, voice, unlock])
@@ -168,7 +175,7 @@ export default function YogaPlayer() {
       return
     }
     const nextPose = poses[poseIndex + 1]
-    voice.speak(`準備，接下來${nextPose.name}${nextPose.side ? `，${nextPose.side}邊` : ''}。`)
+    voice.announce(`準備，接下來${nextPose.name}${nextPose.side ? `，${nextPose.side}邊` : ''}。`)
     const t = setTimeout(() => startPose(poseIndex + 1), 3000)
     return () => clearTimeout(t)
   }, [done, phase, poseIndex, poses, startPose, voice, beep, finishSession])
@@ -360,7 +367,7 @@ export default function YogaPlayer() {
       {/* Voice toggle */}
       <div className={styles.voiceToggle}>
         <span className={styles.voiceDot} />
-        <span className={styles.voiceLabel}>語音引導</span>
+        <span className={styles.voiceLabel}>動作要點語音</span>
         <label className={styles.toggleSwitch}>
           <input type="checkbox" checked={voice.enabled} onChange={voice.toggle} />
           <span className={styles.toggleSlider} />

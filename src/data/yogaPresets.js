@@ -5,6 +5,10 @@
 // positions worth keeping when there isn't time for the whole thing.
 // `side` is "左" / "右" for one-sided poses and null for the rest; the name
 // itself stays side-free so both sides read as the same movement.
+//
+// There is no spoken script here: the player says the name, side and duration
+// on its own and appends `guidance` only when voice detail is switched on, so
+// the two can never drift apart.
 
 export const sections = [
   "暖身・上半身",
@@ -26,7 +30,6 @@ const poses = [
     duration: 60,
     core: true,
     guidance: "鼻子吸 4 秒、嘴巴吐 6 秒。吸氣時肋骨往兩側打開，不是聳肩。",
-    voiceText: "腹式呼吸，60秒。鼻子吸 4 秒、嘴巴吐 6 秒。吸氣時肋骨往兩側打開，不是聳肩。",
   },
   {
     id: "seated-cat-cow",
@@ -38,7 +41,6 @@ const poses = [
     duration: 60,
     core: false,
     guidance: "手放膝蓋，吸氣挺胸、吐氣拱背。動作放慢，讓脊椎一節一節動。",
-    voiceText: "坐姿貓牛，60秒。手放膝蓋，吸氣挺胸、吐氣拱背。動作放慢，讓脊椎一節一節動。",
   },
   {
     id: "wrist-flex",
@@ -50,7 +52,6 @@ const poses = [
     duration: 45,
     core: false,
     guidance: "手背相對往下壓，換邊前甩一甩手腕。",
-    voiceText: "手心手背，45秒。手背相對往下壓，換邊前甩一甩手腕。",
   },
   {
     id: "neck-shoulder-left",
@@ -62,7 +63,6 @@ const poses = [
     duration: 45,
     core: false,
     guidance: "頭往右倒，左肩主動往下沉。用重量帶，不要用手拉。",
-    voiceText: "肩頸伸展，左邊，45秒。頭往右倒，左肩主動往下沉。用重量帶，不要用手拉。",
   },
   {
     id: "neck-shoulder-right",
@@ -74,7 +74,6 @@ const poses = [
     duration: 45,
     core: false,
     guidance: "頭往左倒，右肩主動往下沉。",
-    voiceText: "肩頸伸展，右邊，45秒。頭往左倒，右肩主動往下沉。",
   },
   {
     id: "seated-side-bend-left",
@@ -86,7 +85,6 @@ const poses = [
     duration: 60,
     core: true,
     guidance: "兩邊坐骨都壓住地板不離地，肋骨先往上延展再往旁邊倒。",
-    voiceText: "坐姿側彎，左邊，60秒。兩邊坐骨都壓住地板不離地，肋骨先往上延展再往旁邊倒。",
   },
   {
     id: "seated-side-bend-right",
@@ -98,7 +96,6 @@ const poses = [
     duration: 60,
     core: true,
     guidance: "坐骨壓穩，延展再倒，不要塌腰。",
-    voiceText: "坐姿側彎，右邊，60秒。坐骨壓穩，延展再倒，不要塌腰。",
   },
   // ── 腿後與內收肌 ──
   {
@@ -111,7 +108,6 @@ const poses = [
     duration: 45,
     core: false,
     guidance: "兩腳一起勾腳、繃腳交替，喚醒腳踝與小腿。",
-    voiceText: "腳板壓壓，45秒。兩腳一起勾腳、繃腳交替，喚醒腳踝與小腿。",
   },
   {
     id: "straight-leg-fold-left",
@@ -123,7 +119,6 @@ const poses = [
     duration: 90,
     core: true,
     guidance: "背打直，從髖關節折下去。寧可折不下去，也不要駝背去追腳。",
-    voiceText: "直腿伸展，左邊，90秒。背打直，從髖關節折下去。寧可折不下去，也不要駝背去追腳。",
   },
   {
     id: "straight-leg-fold-right",
@@ -135,7 +130,6 @@ const poses = [
     duration: 90,
     core: true,
     guidance: "背打直，從髖關節折。膝蓋可以微彎沒關係。",
-    voiceText: "直腿伸展，右邊，90秒。背打直，從髖關節折。膝蓋可以微彎沒關係。",
   },
   {
     id: "head-to-knee-left",
@@ -147,7 +141,6 @@ const poses = [
     duration: 90,
     core: true,
     guidance: "另一腳彎曲貼大腿內側。肚子先靠近大腿，頭最後才下去。",
-    voiceText: "後腿伸展，左邊，90秒。另一腳彎曲貼大腿內側。肚子先靠近大腿，頭最後才下去。",
   },
   {
     id: "head-to-knee-right",
@@ -159,7 +152,6 @@ const poses = [
     duration: 90,
     core: true,
     guidance: "肚子先貼大腿，頭最後才下去。",
-    voiceText: "後腿伸展，右邊，90秒。肚子先貼大腿，頭最後才下去。",
   },
   {
     id: "butterfly",
@@ -171,7 +163,6 @@ const poses = [
     duration: 90,
     core: true,
     guidance: "腳跟拉近身體，膝蓋放鬆往下沉。不要用手壓膝蓋，讓它自己降。",
-    voiceText: "鑽石腿（蝴蝶式），90秒。腳跟拉近身體，膝蓋放鬆往下沉。不要用手壓膝蓋，讓它自己降。",
   },
   {
     id: "wide-leg-fold",
@@ -183,7 +174,6 @@ const poses = [
     duration: 120,
     core: true,
     guidance: "膝蓋朝上不要內轉。用 PNF：內側大腿夾向地板 6 秒，放鬆吐氣再往前一點，做 3 輪。",
-    voiceText: "大開腿前彎，120秒。膝蓋朝上不要內轉。用 PNF：內側大腿夾向地板 6 秒，放鬆吐氣再往前一點，做 3 輪。",
   },
   {
     id: "leg-sways",
@@ -195,7 +185,6 @@ const poses = [
     duration: 60,
     core: false,
     guidance: "左右擺動放鬆髖部，剛剛的深度先讓它沉澱。",
-    voiceText: "直角擺腿，60秒。左右擺動放鬆髖部，剛剛的深度先讓它沉澱。",
   },
   // ── 扭轉・開胸・背闊肌 ──
   {
@@ -208,7 +197,6 @@ const poses = [
     duration: 60,
     core: false,
     guidance: "吐氣的時候才轉，手只是輔助，不要硬扳。脊椎先拉長再旋轉。",
-    voiceText: "坐姿扭轉，左邊，60秒。吐氣的時候才轉，手只是輔助，不要硬扳。脊椎先拉長再旋轉。",
   },
   {
     id: "seated-twist-right",
@@ -220,19 +208,17 @@ const poses = [
     duration: 60,
     core: false,
     guidance: "吐氣時轉，先拉長再旋轉。",
-    voiceText: "坐姿扭轉，右邊，60秒。吐氣時轉，先拉長再旋轉。",
   },
   {
-    id: "seated-chest-opener",
+    id: "camel-pose",
     section: 2,
-    emoji: "🌅",
-    name: "坐姿後伸",
-    nameEn: "SEATED CHEST OPENER",
+    emoji: "🐫",
+    name: "駱駝式",
+    nameEn: "CAMEL POSE",
     side: null,
     duration: 60,
     core: false,
-    guidance: "雙手撐在身後，胸口往上推，下巴微收不要仰頭壓頸椎。",
-    voiceText: "坐姿後伸，60秒。雙手撐在身後，胸口往上推，下巴微收不要仰頭壓頸椎。",
+    guidance: "跪姿，膝蓋與髖同寬，雙手扶在下背或抓腳跟。髖往前推、胸口往上開，下巴微收不要仰頭壓頸椎。",
   },
   {
     id: "prone-twist-left",
@@ -244,7 +230,6 @@ const poses = [
     duration: 90,
     core: true,
     guidance: "右手側平舉貼地，左手推地把身體翻開，左腳跨過去踩穩。肩膀有夾擠感就退一點。",
-    voiceText: "趴姿開胸扭轉，左邊，90秒。右手側平舉貼地，左手推地把身體翻開，左腳跨過去踩穩。肩膀有夾擠感就退一點。",
   },
   {
     id: "prone-twist-right",
@@ -256,7 +241,6 @@ const poses = [
     duration: 90,
     core: true,
     guidance: "左手側平舉貼地，右手推地翻開身體。慢慢進去。",
-    voiceText: "趴姿開胸扭轉，右邊，90秒。左手側平舉貼地，右手推地翻開身體。慢慢進去。",
   },
   {
     id: "sphinx",
@@ -268,7 +252,6 @@ const poses = [
     duration: 60,
     core: false,
     guidance: "手肘在肩膀正下方，臀部放鬆，不要夾緊腰。胸口往前推。",
-    voiceText: "人面獅身式，60秒。手肘在肩膀正下方，臀部放鬆，不要夾緊腰。胸口往前推。",
   },
   {
     id: "thread-the-needle-left",
@@ -280,7 +263,6 @@ const poses = [
     duration: 60,
     core: false,
     guidance: "手臂從身體下方穿過去，肩膀外側貼地，另一手可以往前延伸。",
-    voiceText: "穿針式，左邊，60秒。手臂從身體下方穿過去，肩膀外側貼地，另一手可以往前延伸。",
   },
   {
     id: "thread-the-needle-right",
@@ -292,7 +274,6 @@ const poses = [
     duration: 60,
     core: false,
     guidance: "肩膀外側貼地，吐氣時往下沉。",
-    voiceText: "穿針式，右邊，60秒。肩膀外側貼地，吐氣時往下沉。",
   },
   {
     id: "puppy",
@@ -304,7 +285,6 @@ const poses = [
     duration: 90,
     core: true,
     guidance: "膝蓋在髖正下方，手往前爬，胸口往地板沉。臀部留在腳跟正上方，不要坐下去變成嬰兒式。腋下會很有感。",
-    voiceText: "幼犬式，90秒。膝蓋在髖正下方，手往前爬，胸口往地板沉。臀部留在腳跟正上方，不要坐下去變成嬰兒式。腋下會很有感。",
   },
   {
     id: "gate-left",
@@ -316,7 +296,6 @@ const poses = [
     duration: 60,
     core: false,
     guidance: "右腳往側邊打開伸直、腳掌踩地。右手往頭頂延伸再往左倒。骨盆保持朝前，不要跟著轉開。",
-    voiceText: "跪姿側彎，左邊，60秒。右腳往側邊打開伸直、腳掌踩地。右手往頭頂延伸再往左倒。骨盆保持朝前，不要跟著轉開。",
   },
   {
     id: "gate-right",
@@ -328,7 +307,6 @@ const poses = [
     duration: 60,
     core: false,
     guidance: "左腳往側邊伸直，左手往頭頂延伸再往右倒。感覺從腋下一路到腰側。",
-    voiceText: "跪姿側彎，右邊，60秒。左腳往側邊伸直，左手往頭頂延伸再往右倒。感覺從腋下一路到腰側。",
   },
   // ── 深髖 ──
   {
@@ -341,7 +319,6 @@ const poses = [
     duration: 60,
     core: false,
     guidance: "四足跪姿，重新讓脊椎活動一下，準備進深髖。",
-    voiceText: "貓牛式，60秒。四足跪姿，重新讓脊椎活動一下，準備進深髖。",
   },
   {
     id: "downward-dog",
@@ -353,7 +330,6 @@ const poses = [
     duration: 90,
     core: false,
     guidance: "交替踩腳踏車，坐骨往天花板推。膝蓋可以彎，背打直優先。",
-    voiceText: "下犬式，90秒。交替踩腳踏車，坐骨往天花板推。膝蓋可以彎，背打直優先。",
   },
   {
     id: "calf-left",
@@ -365,7 +341,6 @@ const poses = [
     duration: 45,
     core: false,
     guidance: "後腳跟往地板踩，膝蓋伸直。",
-    voiceText: "小腿伸展，左邊，45秒。後腳跟往地板踩，膝蓋伸直。",
   },
   {
     id: "calf-right",
@@ -377,7 +352,6 @@ const poses = [
     duration: 45,
     core: false,
     guidance: "腳跟踩地，膝蓋伸直。",
-    voiceText: "小腿伸展，右邊，45秒。腳跟踩地，膝蓋伸直。",
   },
   {
     id: "lizard-left",
@@ -389,7 +363,6 @@ const poses = [
     duration: 90,
     core: true,
     guidance: "前腳掌在外側，後腳往後延伸，髖往下沉。可以手肘落地加深。",
-    voiceText: "蜥蜴式，左邊，90秒。前腳掌在外側，後腳往後延伸，髖往下沉。可以手肘落地加深。",
   },
   {
     id: "lizard-quad-left",
@@ -401,7 +374,6 @@ const poses = [
     duration: 60,
     core: false,
     guidance: "後腳彎曲用手抓住，拉大腿前側。骨盆不要歪掉。",
-    voiceText: "蜥蜴勾腳，左邊，60秒。後腳彎曲用手抓住，拉大腿前側。骨盆不要歪掉。",
   },
   {
     id: "pigeon-left",
@@ -413,7 +385,6 @@ const poses = [
     duration: 90,
     core: true,
     guidance: "前腿小腿盡量平行墊子前緣，兩邊骨盆保持方正，不要往旁邊倒。",
-    voiceText: "鴿式，左邊，90秒。前腿小腿盡量平行墊子前緣，兩邊骨盆保持方正，不要往旁邊倒。",
   },
   {
     id: "lizard-right",
@@ -425,7 +396,6 @@ const poses = [
     duration: 90,
     core: true,
     guidance: "前腳掌在外側，髖往下沉。呼吸不要憋住。",
-    voiceText: "蜥蜴式，右邊，90秒。前腳掌在外側，髖往下沉。呼吸不要憋住。",
   },
   {
     id: "lizard-quad-right",
@@ -437,7 +407,6 @@ const poses = [
     duration: 60,
     core: false,
     guidance: "後腳彎曲用手抓，骨盆維持方正。",
-    voiceText: "蜥蜴勾腳，右邊，60秒。後腳彎曲用手抓，骨盆維持方正。",
   },
   {
     id: "pigeon-right",
@@ -449,7 +418,6 @@ const poses = [
     duration: 90,
     core: true,
     guidance: "小腿平行前緣，骨盆方正。前彎下去讓臀部深層放鬆。",
-    voiceText: "鴿式，右邊，90秒。小腿平行前緣，骨盆方正。前彎下去讓臀部深層放鬆。",
   },
   {
     id: "frog",
@@ -461,7 +429,6 @@ const poses = [
     duration: 90,
     core: true,
     guidance: "膝蓋下面墊軟的。小腿與大腿保持 90 度，膝蓋不要開得比髖還外面。感覺要在大腿內側，跑到膝蓋內側就退回來一點或改單邊半青蛙。",
-    voiceText: "青蛙式，90秒。膝蓋下面墊軟的。小腿與大腿保持 90 度，膝蓋不要開得比髖還外面。感覺要在大腿內側，跑到膝蓋內側就退回來一點或改單邊半青蛙。",
   },
   {
     id: "quad-left",
@@ -473,7 +440,6 @@ const poses = [
     duration: 60,
     core: false,
     guidance: "股四頭。骨盆微微後傾，感覺會更明顯，也比較不會壓到腰。",
-    voiceText: "腿前伸展，左邊，60秒。股四頭。骨盆微微後傾，感覺會更明顯，也比較不會壓到腰。",
   },
   {
     id: "quad-right",
@@ -485,7 +451,6 @@ const poses = [
     duration: 60,
     core: false,
     guidance: "骨盆微微後傾，拉大腿前側。",
-    voiceText: "腿前伸展，右邊，60秒。骨盆微微後傾，拉大腿前側。",
   },
   {
     id: "hanumanasana-left",
@@ -497,7 +462,6 @@ const poses = [
     duration: 90,
     core: true,
     guidance: "手撐磚或地板。先低弓箭步、骨盆後傾，再把前腳慢慢往前滑。兩邊髖骨保持朝正前方，寧可高一點也不要歪掉。",
-    voiceText: "哈努曼式，左邊，90秒。手撐磚或地板。先低弓箭步、骨盆後傾，再把前腳慢慢往前滑。兩邊髖骨保持朝正前方，寧可高一點也不要歪掉。",
   },
   {
     id: "hanumanasana-right",
@@ -509,7 +473,6 @@ const poses = [
     duration: 90,
     core: true,
     guidance: "一樣從低弓箭步滑出去。撐住重量不要整個坐死，膝蓋後方有拉扯感就停在那裡。",
-    voiceText: "哈努曼式，右邊，90秒。一樣從低弓箭步滑出去。撐住重量不要整個坐死，膝蓋後方有拉扯感就停在那裡。",
   },
   {
     id: "shoelace-left",
@@ -521,7 +484,6 @@ const poses = [
     duration: 90,
     core: false,
     guidance: "兩邊膝蓋上下疊好再前彎。想加強的話最後 30 秒往側邊彎。",
-    voiceText: "鞋帶式，左邊，90秒。兩邊膝蓋上下疊好再前彎。想加強的話最後 30 秒往側邊彎。",
   },
   {
     id: "shoelace-right",
@@ -533,7 +495,6 @@ const poses = [
     duration: 90,
     core: false,
     guidance: "膝蓋疊好前彎，最後可以加側彎。",
-    voiceText: "鞋帶式，右邊，90秒。膝蓋疊好前彎，最後可以加側彎。",
   },
   // ── 收操 ──
   {
@@ -546,7 +507,6 @@ const poses = [
     duration: 90,
     core: true,
     guidance: "膝蓋打開比髖寬，大腳趾併攏坐向腳跟。額頭落地，手往前延伸。把剛剛的深髖全部放掉。",
-    voiceText: "嬰兒式，90秒。膝蓋打開比髖寬，大腳趾併攏坐向腳跟。額頭落地，手往前延伸。把剛剛的深髖全部放掉。",
   },
   {
     id: "figure-four-left",
@@ -558,7 +518,6 @@ const poses = [
     duration: 60,
     core: false,
     guidance: "腳踝架在對側膝上，雙手抱後腿拉近。臀部深層。",
-    voiceText: "仰臥四字，左邊，60秒。腳踝架在對側膝上，雙手抱後腿拉近。臀部深層。",
   },
   {
     id: "figure-four-right",
@@ -570,7 +529,6 @@ const poses = [
     duration: 60,
     core: false,
     guidance: "抱後腿拉近，尾骨保持貼地。",
-    voiceText: "仰臥四字，右邊，60秒。抱後腿拉近，尾骨保持貼地。",
   },
   {
     id: "happy-baby",
@@ -582,7 +540,6 @@ const poses = [
     duration: 60,
     core: false,
     guidance: "抓腳掌外側，膝蓋往腋下拉，尾骨往下貼地。可以左右輕搖。",
-    voiceText: "快樂嬰兒式，60秒。抓腳掌外側，膝蓋往腋下拉，尾骨往下貼地。可以左右輕搖。",
   },
   {
     id: "supine-twist-left",
@@ -594,7 +551,6 @@ const poses = [
     duration: 90,
     core: true,
     guidance: "單膝跨過對側，兩邊肩膀都盡量貼地，眼睛看反方向。髖開完了會扭得更深。",
-    voiceText: "仰臥扭轉，左邊，90秒。單膝跨過對側，兩邊肩膀都盡量貼地，眼睛看反方向。髖開完了會扭得更深。",
   },
   {
     id: "supine-twist-right",
@@ -606,7 +562,6 @@ const poses = [
     duration: 90,
     core: true,
     guidance: "肩膀貼地，眼睛看反方向。吐氣時放掉一點力。",
-    voiceText: "仰臥扭轉，右邊，90秒。肩膀貼地，眼睛看反方向。吐氣時放掉一點力。",
   },
   {
     id: "knees-to-chest",
@@ -618,7 +573,6 @@ const poses = [
     duration: 30,
     core: false,
     guidance: "雙腳抱進來，把脊椎收回中立。",
-    voiceText: "抱膝式，30秒。雙腳抱進來，把脊椎收回中立。",
   },
   {
     id: "savasana",
@@ -630,7 +584,6 @@ const poses = [
     duration: 180,
     core: true,
     guidance: "什麼都不用做。讓剛剛的活動範圍被神經系統記住。",
-    voiceText: "大休息，180秒。什麼都不用做。讓剛剛的活動範圍被神經系統記住。",
   },
 ]
 
