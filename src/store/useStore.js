@@ -176,6 +176,7 @@ const useStore = create((set, get) => ({
       date: entry.date,
       activity: entry.activity,
       duration_hours: String(entry.duration_hours),
+      emoji: entry.emoji || '',
     });
     try {
       await fetch(`${url}?${params}`);

@@ -16,7 +16,7 @@ export default function DayCell({ day, isToday, isOtherMonth, workoutDay, yogaPr
         {yogaPreset && <span className={styles.tagYoga} title={yogaPreset}>Y</span>}
         {activities && activities.length > 0 && (
           <span className={styles.tagActivity} title={activities.map(a => a.activity).join(', ')}>
-            {emojiFor(activities[0].activity)}
+            {emojiFor(activities[0])}
           </span>
         )}
       </div>
