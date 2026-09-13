@@ -5,6 +5,12 @@
 //   workout_log   date | day_number | completed | duration_minutes | notes
 //   yoga_log      date | preset_name | completed | duration_minutes
 //   exercise_log  date | day_number | exercise | set_number | side | weight | reps
+//   activity_log  date | activity | duration_hours | emoji
+//
+// The `emoji` header on activity_log must exist for the app to read it back
+// (rows are keyed by the header row); add it as column D if the sheet
+// predates it. Older rows leave it blank and the app falls back to its
+// built-in emoji for that activity.
 //
 // Note: workout_program and yoga_presets are no longer read by the app.
 // Those menus now live in the source code.
@@ -47,12 +53,14 @@ function handleRequest(e) {
         break;
       // Anything outside the program: skiing, a pole class, whatever.
       // Recorded in hours, since these are logged after the fact rather
-      // than timed by the app.
+      // than timed by the app. `emoji` is what the user picked for a
+      // free-typed 其他 activity; blank for the quick-pick types.
       case 'logActivity':
         result = appendRow('activity_log', [
           params.date,
           params.activity,
-          parseFloat(params.duration_hours)
+          parseFloat(params.duration_hours),
+          params.emoji || ''
         ]);
         break;
       case 'logYoga':
