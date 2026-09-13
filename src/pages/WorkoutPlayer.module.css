@@ -120,13 +120,98 @@
 }
 
 .previewItem {
-  padding: 12px 20px;
+  padding: 12px 14px 12px 20px;
   border-bottom: 1px solid rgba(42,42,56,0.6);
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+.previewItem:last-child { border-bottom: none; }
+
+.previewMain {
+  flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 3px;
 }
-.previewItem:last-child { border-bottom: none; }
+
+/* ─── Exercise notes (form cues) ─────────────────────────────── */
+.cueText {
+  font-size: 12px;
+  color: var(--gold);
+  opacity: 0.85;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  margin-top: 2px;
+}
+
+.cueBtn {
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  margin-top: -6px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background: none;
+  color: var(--text-muted);
+  font-size: 15px;
+  cursor: pointer;
+}
+.cueBtn:hover { color: var(--text-dim); border-color: var(--border); }
+.cueBtnHas { color: var(--gold); opacity: 0.7; }
+
+.activeCue {
+  width: 100%;
+  margin-top: 14px;
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(201,169,110,0.25);
+  background: rgba(201,169,110,0.07);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  cursor: pointer;
+}
+
+.activeCueLabel {
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  color: var(--gold);
+  opacity: 0.8;
+}
+
+.activeCueText {
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--text);
+  white-space: pre-wrap;
+}
+
+.activeCueEmpty {
+  margin-top: 12px;
+  padding: 6px 0;
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  opacity: 0.7;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.activeCueEmpty:hover { opacity: 1; }
+
+.restNextCue {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--gold);
+  opacity: 0.85;
+  margin-top: 8px;
+  white-space: pre-wrap;
+}
 
 .previewName {
   font-size: 14px;

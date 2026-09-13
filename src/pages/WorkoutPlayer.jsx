@@ -4,6 +4,7 @@ import useStore from '../store/useStore'
 import useTimer from '../hooks/useTimer'
 import useBeep from '../hooks/useBeep'
 import Confetti from '../components/Confetti'
+import ExerciseNoteSheet from '../components/ExerciseNoteSheet'
 import styles from './WorkoutPlayer.module.css'
 
 function formatTime(seconds) {
@@ -39,6 +40,11 @@ export default function WorkoutPlayer() {
   const removeLastSkip = useStore(s => s.removeLastSkip)
   const exerciseLog    = useStore(s => s.exerciseLog)
   const addExerciseLogs = useStore(s => s.addExerciseLogs)
+  const exerciseNotes  = useStore(s => s.exerciseNotes)
+
+  // Which exercise's note sheet is open (by name), or null.
+  const [noteFor, setNoteFor] = useState(null)
+  const noteOf = useCallback(name => exerciseNotes[name]?.note || '', [exerciseNotes])
 
   // Single timer for session elapsed (Web Worker, iOS safe)
   const { elapsed, startUp, stop: stopElapsed, reset: resetElapsed } = useTimer()
@@ -339,6 +345,10 @@ export default function WorkoutPlayer() {
     <div className="page">
       <Confetti active={showConfetti} />
 
+      {noteFor && (
+        <ExerciseNoteSheet key={noteFor} exercise={noteFor} onClose={() => setNoteFor(null)} />
+      )}
+
       {/* ══════════ READY ══════════ */}
       {phase === 'ready' && (
         <>
@@ -376,14 +386,22 @@ export default function WorkoutPlayer() {
               <div className={styles.previewHeader}>今日課表</div>
               {exercises.map((ex, i) => (
                 <div key={i} className={styles.previewItem}>
-                  <span className={styles.previewName}>
-                    {ex.name}
-                    {ex.symmetric && <span className={styles.symBadge}>左右輪流</span>}
-                  </span>
-                  <span className={styles.previewMeta}>
-                    {ex.sets} × {ex.reps}{ex.rest > 0 ? ` · 組後休息 ${ex.rest}s` : ''}
-                  </span>
-                  {ex.notes && <div className={styles.previewNotes}>{ex.notes}</div>}
+                  <div className={styles.previewMain}>
+                    <span className={styles.previewName}>
+                      {ex.name}
+                      {ex.symmetric && <span className={styles.symBadge}>左右輪流</span>}
+                    </span>
+                    <span className={styles.previewMeta}>
+                      {ex.sets} × {ex.reps}{ex.rest > 0 ? ` · 組後休息 ${ex.rest}s` : ''}
+                    </span>
+                    {ex.notes && <div className={styles.previewNotes}>{ex.notes}</div>}
+                    {noteOf(ex.name) && <div className={styles.cueText}>{noteOf(ex.name)}</div>}
+                  </div>
+                  <button
+                    className={`${styles.cueBtn} ${noteOf(ex.name) ? styles.cueBtnHas : ''}`}
+                    onClick={() => setNoteFor(ex.name)}
+                    aria-label={`${ex.name} 注意事項`}
+                  >✎</button>
                 </div>
               ))}
             </div>
@@ -465,6 +483,9 @@ export default function WorkoutPlayer() {
                         {nextEx.sets} × {nextEx.reps}
                       </div>
                     )}
+                    {isNewEx && noteOf(nextEx.name) && (
+                      <div className={styles.restNextCue}>{noteOf(nextEx.name)}</div>
+                    )}
                   </div>
                 )}
 
@@ -516,6 +537,18 @@ export default function WorkoutPlayer() {
               })()}
 
               {currentEx.notes && <div className={styles.activeNotes}>{currentEx.notes}</div>}
+
+              {/* Form cues — the note this exercise carries on every day */}
+              {noteOf(currentEx.name) ? (
+                <button className={styles.activeCue} onClick={() => setNoteFor(currentEx.name)}>
+                  <span className={styles.activeCueLabel}>注意事項</span>
+                  <span className={styles.activeCueText}>{noteOf(currentEx.name)}</span>
+                </button>
+              ) : (
+                <button className={styles.activeCueEmpty} onClick={() => setNoteFor(currentEx.name)}>
+                  ＋ 加注意事項
+                </button>
+              )}
             </div>
           )}
 

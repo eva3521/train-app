@@ -7,6 +7,7 @@ const WORKOUT_LOG_KEY = 'train_workout_log';
 const YOGA_LOG_KEY = 'train_yoga_log';
 const EXERCISE_LOG_KEY = 'train_exercise_log';
 const ACTIVITY_LOG_KEY = 'train_activity_log';
+const EXERCISE_NOTES_KEY = 'train_exercise_notes';
 
 function getQueue() {
   try {
@@ -31,11 +32,43 @@ function saveLocal(key, data) {
   } catch { /* storage full — ok */ }
 }
 
+// Notes are a map, not a list: { [exerciseName]: { note, updated_at } }.
+function loadLocalMap(key) {
+  try {
+    const data = JSON.parse(localStorage.getItem(key));
+    return data && typeof data === 'object' && !Array.isArray(data) ? data : {};
+  } catch { return {}; }
+}
+
+// Sheet rows → map. Rows with an empty note are dropped so a cleared note
+// really disappears from the UI.
+function notesFromRows(rows) {
+  const map = {};
+  for (const r of rows) {
+    const name = String(r.exercise ?? '').trim();
+    if (!name) continue;
+    map[name] = { note: String(r.note ?? ''), updated_at: String(r.updated_at ?? '') };
+  }
+  return map;
+}
+
+// Newest edit wins per exercise, so a note written offline isn't clobbered
+// by the stale copy in Sheets on the next load.
+function mergeNotes(remote, local) {
+  const merged = { ...remote };
+  for (const [name, entry] of Object.entries(local)) {
+    const cur = merged[name];
+    if (!cur || String(entry.updated_at) > String(cur.updated_at)) merged[name] = entry;
+  }
+  return merged;
+}
+
 const useStore = create((set, get) => ({
   workoutLog: loadLocal(WORKOUT_LOG_KEY),
   yogaLog: loadLocal(YOGA_LOG_KEY),
   exerciseLog: loadLocal(EXERCISE_LOG_KEY),
   activityLog: loadLocal(ACTIVITY_LOG_KEY),
+  exerciseNotes: loadLocalMap(EXERCISE_NOTES_KEY),
   // Menus live in the source code now, not in Sheets.
   workoutProgram: hardcodedProgram,
   yogaPresets: hardcodedPresets,
@@ -51,11 +84,12 @@ const useStore = create((set, get) => ({
     }
     set({ loading: true, error: null });
     try {
-      const [wLog, yLog, eLog, aLog] = await Promise.all([
+      const [wLog, yLog, eLog, aLog, notesRows] = await Promise.all([
         fetch(`${url}?action=getWorkoutLog`).then(r => r.json()),
         fetch(`${url}?action=getYogaLog`).then(r => r.json()),
         fetch(`${url}?action=getExerciseLog`).then(r => r.json()),
         fetch(`${url}?action=getActivityLog`).then(r => r.json()),
+        fetch(`${url}?action=getExerciseNotes`).then(r => r.json()),
       ]);
 
       const newWorkoutLog = Array.isArray(wLog) ? wLog : [];
@@ -75,11 +109,18 @@ const useStore = create((set, get) => ({
       saveLocal(EXERCISE_LOG_KEY, mergedExercise);
       saveLocal(ACTIVITY_LOG_KEY, mergedActivity);
 
+      // An old backend that doesn't know this action answers with an error
+      // object, which simply means "no remote notes yet".
+      const remoteNotes = notesFromRows(Array.isArray(notesRows) ? notesRows : []);
+      const mergedNotes = mergeNotes(remoteNotes, loadLocalMap(EXERCISE_NOTES_KEY));
+      saveLocal(EXERCISE_NOTES_KEY, mergedNotes);
+
       set({
         workoutLog: mergedWorkout,
         yogaLog: mergedYoga,
         exerciseLog: mergedExercise,
         activityLog: mergedActivity,
+        exerciseNotes: mergedNotes,
         loading: false,
       });
       get().flushQueue();
@@ -183,6 +224,30 @@ const useStore = create((set, get) => ({
     } catch {
       const queue = getQueue();
       queue.push({ type: 'logActivity', data: entry });
+      saveQueue(queue);
+    }
+  },
+
+  // Form cues for one exercise, shared across every day it appears on.
+  // Saving an empty string clears the note.
+  saveExerciseNote: async (exercise, note) => {
+    const name = String(exercise ?? '').trim();
+    if (!name) return;
+    const entry = { note: String(note ?? '').trim(), updated_at: new Date().toISOString() };
+    set(s => {
+      const updated = { ...s.exerciseNotes, [name]: entry };
+      saveLocal(EXERCISE_NOTES_KEY, updated);
+      return { exerciseNotes: updated };
+    });
+    const url = get().gasUrl;
+    if (!url) return;
+    const data = { exercise: name, note: entry.note, updated_at: entry.updated_at };
+    const params = new URLSearchParams({ action: 'saveExerciseNote', ...data });
+    try {
+      await fetch(`${url}?${params}`);
+    } catch {
+      const queue = getQueue();
+      queue.push({ type: 'saveExerciseNote', data });
       saveQueue(queue);
     }
   },

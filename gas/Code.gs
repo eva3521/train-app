@@ -6,6 +6,7 @@
 //   yoga_log      date | preset_name | completed | duration_minutes
 //   exercise_log  date | day_number | exercise | set_number | side | weight | reps
 //   activity_log  date | activity | duration_hours | emoji
+//   exercise_notes exercise | note | updated_at   (one row per exercise; created on demand)
 //
 // The `emoji` header on activity_log must exist for the app to read it back
 // (rows are keyed by the header row); add it as column D if the sheet
@@ -41,6 +42,18 @@ function handleRequest(e) {
         break;
       case 'getActivityLog':
         result = getSheetData('activity_log');
+        break;
+      // Per-exercise form cues, keyed by exercise name. Not a log: the same
+      // exercise on Day 3 and Day 40 shares one note.
+      case 'getExerciseNotes':
+        result = getSheetData(getNotesSheet().getName());
+        break;
+      case 'saveExerciseNote':
+        result = upsertExerciseNote(
+          params.exercise,
+          params.note || '',
+          params.updated_at || new Date().toISOString()
+        );
         break;
       case 'logWorkout':
         result = appendRow('workout_log', [
@@ -131,4 +144,35 @@ function appendRows(sheetName, rows) {
     .getRange(sheet.getLastRow() + 1, 1, rows.length, rows[0].length)
     .setValues(rows);
   return { success: true, count: rows.length };
+}
+
+// ─── Exercise notes ────────────────────────────────────────────
+// The notes tab is created the first time it's needed, so adding this
+// feature doesn't require touching the spreadsheet by hand.
+var NOTES_SHEET = 'exercise_notes';
+var NOTES_HEADERS = ['exercise', 'note', 'updated_at'];
+
+function getNotesSheet() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName(NOTES_SHEET);
+  if (!sheet) {
+    sheet = ss.insertSheet(NOTES_SHEET);
+    sheet.appendRow(NOTES_HEADERS);
+  }
+  return sheet;
+}
+
+// One row per exercise: overwrite if the name already exists, else append.
+function upsertExerciseNote(exercise, note, updatedAt) {
+  if (!exercise) return { error: 'exercise is required' };
+  var sheet = getNotesSheet();
+  var values = sheet.getDataRange().getValues();
+  for (var i = 1; i < values.length; i++) {
+    if (String(values[i][0]) === String(exercise)) {
+      sheet.getRange(i + 1, 1, 1, 3).setValues([[exercise, note, updatedAt]]);
+      return { success: true, updated: true };
+    }
+  }
+  sheet.appendRow([exercise, note, updatedAt]);
+  return { success: true, updated: false };
 }
