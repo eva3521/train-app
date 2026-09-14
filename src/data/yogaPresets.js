@@ -1,5 +1,5 @@
 // Stretch routine, transcribed from the standalone stretch-timer prototype.
-// Five sections, 51 poses, about 63 minutes.
+// Five sections, 49 poses, about 60 minutes.
 //
 // A pose's `core` flag marks it as part of the shortened routine — the
 // positions worth keeping when there isn't time for the whole thing.
@@ -216,7 +216,7 @@ const poses = [
     name: "駱駝式",
     nameEn: "CAMEL POSE",
     side: null,
-    duration: 60,
+    duration: 40,
     core: false,
     guidance: "跪姿，膝蓋與髖同寬，雙手扶在下背或抓腳跟。髖往前推、胸口往上開，下巴微收不要仰頭壓頸椎。",
   },
@@ -252,28 +252,6 @@ const poses = [
     duration: 60,
     core: false,
     guidance: "手肘在肩膀正下方，臀部放鬆，不要夾緊腰。胸口往前推。",
-  },
-  {
-    id: "thread-the-needle-left",
-    section: 2,
-    emoji: "🧵",
-    name: "穿針式",
-    nameEn: "THREAD THE NEEDLE",
-    side: "左",
-    duration: 60,
-    core: false,
-    guidance: "手臂從身體下方穿過去，肩膀外側貼地，另一手可以往前延伸。",
-  },
-  {
-    id: "thread-the-needle-right",
-    section: 2,
-    emoji: "🧵",
-    name: "穿針式",
-    nameEn: "THREAD THE NEEDLE",
-    side: "右",
-    duration: 60,
-    core: false,
-    guidance: "肩膀外側貼地，吐氣時往下沉。",
   },
   {
     id: "puppy",
@@ -591,7 +569,7 @@ const fullRoutine = {
   id: 'stretch-full',
   name: '完整伸展',
   description: '暖身・腿後・扭轉・深髖・收操',
-  duration: 63,
+  duration: 60,
   poses,
 }
 
